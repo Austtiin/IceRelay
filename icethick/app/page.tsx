@@ -77,21 +77,39 @@ export default function Home() {
     }
   ]);
 
-  const handleSubmitReport = (data: ReportData) => {
-    const newReport = {
-      id: reports.length + 1,
-      lakeName: data.lake,
-      thickness: data.thickness,
-      timeAgo: 'Just now',
-      location: data.useGPS ? 'GPS location' : (data.location || 'Not specified'),
-      quality: data.iceQuality,
-      reportCount: 1,
-      surfaceType: data.surfaceType,
-      isMeasured: data.isMeasured
-    };
-    setReports([newReport, ...reports]);
-    setIsSubmitFormOpen(false);
-    alert('✅ Thank you! Your ice report helps the community stay safe.');
+  const handleSubmitReport = async (data: ReportData) => {
+    try {
+      // Import the api client dynamically
+      const { api } = await import('../lib/api');
+      
+      // Create report via API (will retry 3 times automatically)
+      const newReport = await api.createReport(data);
+      
+      // Add to local state for immediate UI update
+      const displayReport = {
+        id: reports.length + 1,
+        lakeName: newReport.lakeName || 'Unknown location',
+        thickness: newReport.thickness,
+        timeAgo: 'Just now',
+        location: data.location || 'GPS location',
+        quality: data.iceQuality,
+        reportCount: 1,
+        surfaceType: data.surfaceType,
+        isMeasured: data.isMeasured
+      };
+      
+      setReports([displayReport, ...reports]);
+      setIsSubmitFormOpen(false);
+      
+      // Success message
+      alert('✅ Success! Your ice report has been submitted and will help keep the community safe. Thank you!');
+    } catch (error) {
+      console.error('Failed to submit report:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Failed after 3 retries
+      alert(`❌ Failed to submit report after 3 attempts.\n\n${errorMessage}\n\nPlease check your connection and try again.`);
+    }
   };
 
   const stats = {

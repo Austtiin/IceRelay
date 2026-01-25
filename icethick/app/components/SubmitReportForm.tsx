@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 interface SubmitReportFormProps {
   onClose: () => void;
-  onSubmit: (data: ReportData) => void;
+  onSubmit: (data: ReportData) => Promise<void>;
 }
 
 export interface ReportData {
@@ -17,6 +17,8 @@ export interface ReportData {
   surfaceType: string;
   isMeasured: boolean;
   useGPS: boolean;
+  latitude: number;
+  longitude: number;
 }
 
 // Light normalization for lake names
@@ -57,16 +59,81 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
     notes: '',
     surfaceType: 'clear',
     isMeasured: false,
-    useGPS: false
+    useGPS: false,
+    latitude: 0,
+    longitude: 0
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [locationError, setLocationError] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser');
+      setLocationStatus('error');
+      return;
+    }
+
+    setLocationStatus('loading');
+    setLocationError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData(prev => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          useGPS: true
+        }));
+        setLocationStatus('success');
+      },
+      (error) => {
+        let errorMessage = 'Unable to get your location';
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMessage = 'Location permission denied. Please enable location access in your browser.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMessage = 'Location information unavailable';
+        } else if (error.code === error.TIMEOUT) {
+          errorMessage = 'Location request timed out';
+        }
+        setLocationError(errorMessage);
+        setLocationStatus('error');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+async (e: React.FormEvent) => {
     e.preventDefault();
-    // Normalize lake name if provided
-    const normalizedData = {
-      ...formData,
-      lake: formData.lake ? normalizeLakeName(formData.lake) : ''
-    };
+
+    // Validate location is set
+    if (formData.latitude === 0 || formData.longitude === 0) {
+      setLocationError('Please use your location before submitting');
+      setLocationStatus('error');
+      return;
+    }
+
+    // Set submitting state
+    setIsSubmitting(true);
+
+    try {
+      // Normalize lake name if provided
+      const normalizedData = {
+        ...formData,
+        lake: formData.lake ? normalizeLakeName(formData.lake) : ''
+      };
+      await onSubmit(normalizedData);
+      // Note: Form will be closed by parent on success
+    } catch (error) {
+      // Error handling is done in parent
+      console.error('Form submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
     onSubmit(normalizedData);
   };
 
@@ -294,7 +361,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
               </label>
             </div>
 
-            {/* Location */}
+            {/* Location with Use My Location Button */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{
                 display: 'block',
@@ -303,42 +370,79 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 color: 'var(--primary-dark)',
                 fontSize: '0.9rem'
               }}>
-                Location (Optional)
+                Location <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
-              <label
+              
+              {/* Use My Location Button */}
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={locationStatus === 'loading'}
                 style={{
-                  display: 'block',
-                  padding: '0.6rem',
-                  marginBottom: '0.5rem',
-                  background: formData.useGPS ? 'var(--primary-light)' : 'white',
-                  border: `2px solid ${formData.useGPS ? 'var(--primary-medium)' : 'var(--primary-light)'}`,
+                  width: '100%',
+                  padding: '0.75rem',
+                  marginBottom: '0.75rem',
+                  background: locationStatus === 'success' ? 'var(--success)' : 'var(--primary-medium)',
+                  color: 'white',
+                  border: 'none',
                   borderRadius: '0.5rem',
-                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: locationStatus === 'loading' ? 'wait' : 'pointer',
                   transition: 'all 0.2s',
-                  fontSize: '0.85rem'
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={formData.useGPS}
-                  onChange={(e) => setFormData({ ...formData, useGPS: e.target.checked })}
-                  style={{ marginRight: '0.5rem' }}
-                />
-                📍 Use my GPS location
-              </label>
+                {locationStatus === 'loading' && '⏳ Getting your location...'}
+                {locationStatus === 'success' && '✓ Location captured'}
+                {locationStatus === 'idle' && '📍 Use My Location'}
+                {locationStatus === 'error' && '⚠️ Try Again'}
+              </button>
+
+              {/* Show coordinates when captured */}
+              {locationStatus === 'success' && (
+                <div style={{
+                  padding: '0.5rem',
+                  background: 'var(--primary-light)',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.85rem',
+                  color: 'var(--primary-dark)',
+                  marginBottom: '0.5rem'
+                }}>
+                  ✓ Latitude: {formData.latitude.toFixed(6)}, Longitude: {formData.longitude.toFixed(6)}
+                </div>
+              )}
+
+              {/* Error message */}
+              {locationStatus === 'error' && locationError && (
+                <div style={{
+                  padding: '0.5rem',
+                  background: '#fee',
+                  border: '1px solid var(--danger)',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.85rem',
+                  color: 'var(--danger)',
+                  marginBottom: '0.5rem'
+                }}>
+                  {locationError}
+                </div>
+              )}
+
+              {/* Optional text location */}
               <input
                 type="text"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Or describe: West shore, North bay..."
-                disabled={formData.useGPS}
+                placeholder="Optional: Describe spot (West shore, North bay...)"
                 style={{
                   width: '100%',
                   padding: '0.6rem',
                   borderRadius: '0.5rem',
                   border: '2px solid var(--primary-light)',
-                  fontSize: '0.9rem',
-                  opacity: formData.useGPS ? 0.5 : 1
+                  fontSize: '0.9rem'
                 }}
               />
             </div>
@@ -401,17 +505,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
               <li>Does not guarantee safety</li>
               <li>Ice conditions change rapidly</li>
             </ul>
-          </div>
-
-          {/* Buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '0.75rem',
-            justifyContent: 'flex-end'
-          }}>
-            <button
-              type="button"
-              onClick={onClose}
+          </didisabled={isSubmitting}
               style={{
                 padding: '0.65rem 1.25rem',
                 borderRadius: '0.5rem',
@@ -419,17 +513,48 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 background: 'white',
                 color: 'var(--primary-medium)',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
-                fontSize: '0.95rem'
+                fontSize: '0.95rem',
+                opacity: isSubmitting ? 0.5 : 1
               }}
             >
               Cancel
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               style={{
                 padding: '0.65rem 1.5rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: isSubmitting ? '#999' : 'var(--primary-dark)',
+                color: 'white',
+                fontWeight: 600,
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                fontSize: '0.95rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <span style={{ 
+                    display: 'inline-block',
+                    width: '1rem',
+                    height: '1rem',
+                    border: '2px solid #fff',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }} />
+                  Submitting...
+                </>
+              ) : (
+                'Submit Report'
+              )}.65rem 1.5rem',
                 borderRadius: '0.5rem',
                 border: 'none',
                 background: 'var(--primary-dark)',

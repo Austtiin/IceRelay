@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 using IceRelay.Api.Models;
+using Microsoft.Data.SqlClient;
+using System.Security.Cryptography;
 
 namespace IceRelay.Api.Functions;
 
@@ -76,7 +78,14 @@ public class ReportsFunction
             return badResponse;
         }
 
-        // Validate thickness
+        // Validate required fields
+        if (reportRequest.Latitude == 0 || reportRequest.Longitude == 0)
+        {
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync("Latitude and Longitude are required");
+            return badResponse;
+        }
+
         if (reportRequest.Thickness < 0 || reportRequest.Thickness > 50)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
@@ -84,32 +93,134 @@ public class ReportsFunction
             return badResponse;
         }
 
-        // Create report
-        var report = new IceReport
+        if (string.IsNullOrWhiteSpace(reportRequest.SurfaceType))
         {
-            Id = Guid.NewGuid().ToString(),
-            LakeName = reportRequest.Lake,
-            Thickness = reportRequest.Thickness,
-            Location = reportRequest.Location,
-            Latitude = reportRequest.Latitude,
-            Longitude = reportRequest.Longitude,
-            SurfaceType = reportRequest.SurfaceType,
-            IsMeasured = reportRequest.IsMeasured,
-            Method = reportRequest.Method,
-            IceQuality = reportRequest.IceQuality,
-            Notes = reportRequest.Notes,
-            CreatedAt = DateTime.UtcNow,
-            IpAddress = req.Headers.TryGetValues("X-Forwarded-For", out var values) 
-                ? values.FirstOrDefault() 
-                : "unknown"
-        };
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync("Surface type is required");
+            return badResponse;
+        }
 
-        // TODO: Save to Cosmos DB
-        _logger.LogInformation($"Report created: {report.Id} for {report.LakeName}");
+        try
+        {
+            // Get connection string from environment
+            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                _logger.LogError("SqlConnectionString not configured");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Database connection not configured");
+                return errorResponse;
+            }
 
-        var response = req.CreateResponse(HttpStatusCode.Created);
-        await response.WriteAsJsonAsync(report);
-        return response;
+            // Generate anonymous session hash from IP
+            var ipAddress = req.Headers.TryGetValues("X-Forwarded-For", out var values) 
+                ? values.FirstOrDefault() ?? "unknown"
+                : "unknown";
+            var sessionHash = GenerateSessionHash(ipAddress);
+
+            // Insert into SQL database
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            var sql = @"
+                INSERT INTO IceReports (
+                    Latitude,
+                    Longitude,
+                    LakeName,
+                    IceThicknessIn,
+                    MeasurementType,
+                    SurfaceType,
+                    Notes,
+                    ExpiresAt,
+                    AnonymousSessionHash
+                )
+                OUTPUT INSERTED.Id, INSERTED.CreatedAt
+                VALUES (
+                    @Latitude,
+                    @Longitude,
+                    @LakeName,
+                    @IceThicknessIn,
+                    @MeasurementType,
+                    @SurfaceType,
+                    @Notes,
+                    DATEADD(HOUR, 24, SYSUTCDATETIME()),
+                    @SessionHash
+                );";
+
+            await using var command = new SqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@Latitude", reportRequest.Latitude);
+            command.Parameters.AddWithValue("@Longitude", reportRequest.Longitude);
+            command.Parameters.AddWithValue("@LakeName", reportRequest.Lake ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@IceThicknessIn", reportRequest.Thickness);
+            command.Parameters.AddWithValue("@MeasurementType", reportRequest.IsMeasured ? "Measured" : "Observed");
+            command.Parameters.AddWithValue("@SurfaceType", reportRequest.SurfaceType);
+            
+            // Combine notes with ice quality
+            var notesText = reportRequest.Notes ?? "";
+            if (reportRequest.IceQuality != null && reportRequest.IceQuality.Any())
+            {
+                notesText = string.IsNullOrWhiteSpace(notesText) 
+                    ? string.Join(", ", reportRequest.IceQuality)
+                    : $"{notesText} | Conditions: {string.Join(", ", reportRequest.IceQuality)}";
+            }
+            command.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notesText) ? (object)DBNull.Value : notesText);
+            command.Parameters.AddWithValue("@SessionHash", sessionHash);
+
+            await using var reader = await command.ExecuteReaderAsync();
+            
+            string? insertedId = null;
+            DateTime? createdAt = null;
+            if (await reader.ReadAsync())
+            {
+                insertedId = reader["Id"].ToString();
+                createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
+            }
+
+            _logger.LogInformation($"Report created successfully: ID={insertedId}, Lake={reportRequest.Lake}");
+
+            // Return created report
+            var report = new IceReport
+            {
+                Id = insertedId,
+                LakeName = reportRequest.Lake,
+                Thickness = reportRequest.Thickness,
+                Location = reportRequest.Location,
+                Latitude = reportRequest.Latitude,
+                Longitude = reportRequest.Longitude,
+                SurfaceType = reportRequest.SurfaceType,
+                IsMeasured = reportRequest.IsMeasured,
+                Method = reportRequest.Method,
+                IceQuality = reportRequest.IceQuality,
+                Notes = reportRequest.Notes,
+                CreatedAt = createdAt ?? DateTime.UtcNow,
+                IpAddress = ipAddress
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.Created);
+            await response.WriteAsJsonAsync(report);
+            return response;
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex, "SQL error creating report");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Database error: {ex.Message}");
+            return errorResponse;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating report");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("An unexpected error occurred");
+            return errorResponse;
+        }
+    }
+
+    private static string GenerateSessionHash(string ipAddress)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(ipAddress));
+        return Convert.ToBase64String(hashBytes)[..16]; // Take first 16 chars
     }
 
     [Function("GetNearbyReports")]
