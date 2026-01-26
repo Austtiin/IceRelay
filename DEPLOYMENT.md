@@ -48,12 +48,14 @@ Configuration:
 
 ### 4. Configure Static Web App Settings (Azure Portal)
 
-In the Azure Portal for your Static Web App:
+~~In the Azure Portal for your Static Web App:~~
 
-1. Go to **Configuration** → **Application settings**
-2. Add:
-   - Name: `NEXT_PUBLIC_API_URL`
-   - Value: `https://<YOUR_FUNCTION_APP_NAME>.azurewebsites.net/api`
+~~1. Go to **Configuration** → **Application settings**~~
+~~2. Add:~~
+   ~~- Name: `NEXT_PUBLIC_API_URL`~~
+   ~~- Value: `https://<YOUR_FUNCTION_APP_NAME>.azurewebsites.net/api`~~
+
+**UPDATE**: This step is NOT needed for Next.js static exports. Environment variables must be configured as **GitHub Secrets** instead (see Environment Variables section below).
 
 ## Local Development
 
@@ -103,12 +105,23 @@ GitHub Repository
 ### Development (.env.local)
 ```
 NEXT_PUBLIC_API_URL=http://localhost:7071/api
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1IjoiYXN0cGhlbnMxMDA2IiwiYSI6ImNta3VxcDMyNzFqd3UzZG9kemVucmdudmMifQ.GtH22K3wSgDiILPgQN0SdQ
 ```
 
-### Production (.env.production)
-```
-NEXT_PUBLIC_API_URL=https://<YOUR_FUNCTION_APP_NAME>.azurewebsites.net/api
-```
+### Production (GitHub Secrets)
+
+**IMPORTANT**: For Next.js static exports (`output: 'export'`), environment variables must be available at **build time**, not runtime. Azure Static Web App environment variables are runtime-only and won't work for static exports.
+
+#### Setup GitHub Secrets:
+
+1. Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions**
+2. Add these secrets:
+   - `NEXT_PUBLIC_API_URL`: Your Azure Functions URL
+   - `NEXT_PUBLIC_MAPBOX_TOKEN`: Your Mapbox access token
+
+The GitHub Actions workflow automatically injects these during the build step.
+
+**Note**: Do NOT use Azure Static Web App Configuration settings for these variables—they won't be accessible during build time for static exports.
 
 ## Notes
 

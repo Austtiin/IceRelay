@@ -10,10 +10,6 @@ import {CircularProgress, Typography, Box, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 
-// Set Mapbox token from public env; if missing, we'll show a friendly message instead of crashing
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
-const hasMapboxToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-
 interface Report {
   Id?: string;
   id?: string;
@@ -41,15 +37,26 @@ export default function MapPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentZoom, setCurrentZoom] = useState(5);
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasMapboxToken, setHasMapboxToken] = useState(false);
   const markers = useRef<mapboxgl.Marker[]>([]);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+    // Set mapbox token on client side only
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+    if (token) {
+      mapboxgl.accessToken = token;
+      setHasMapboxToken(true);
+    } else {
+      console.error('Mapbox token is not configured. Set NEXT_PUBLIC_MAPBOX_TOKEN before building.');
+    }
+  }, []);
 
   // Initialize map
   useEffect(() => {
-    if (!hasMapboxToken) {
-      console.error('Mapbox token is not configured. Set NEXT_PUBLIC_MAPBOX_TOKEN before building.');
-      return;
-    }
-
+    if (!isMounted || !hasMapboxToken) return;
     if (!mapContainer.current || map.current) return;
 
     // Get URL params for initial position
@@ -124,7 +131,7 @@ export default function MapPage() {
     return () => {
       map.current?.remove();
     };
-  }, []);
+  }, [isMounted, hasMapboxToken]);
 
   // Fetch reports within map bounds
   const fetchReportsInBounds = async (bbox: {
@@ -257,6 +264,24 @@ export default function MapPage() {
         onNewReport={() => {}}
       />
 
+      {!isMounted ? (
+        // Prevent hydration mismatch by showing loading state until mounted
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress size={60} />
+        </div>
+      ) : !hasMapboxToken ? (
+        // Show error message if token is missing
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
+          <Box sx={{ textAlign: 'center', maxWidth: '500px' }}>
+            <Typography variant="h5" gutterBottom color="error">
+              Map Configuration Error
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Mapbox token is not configured. Please set NEXT_PUBLIC_MAPBOX_TOKEN in your environment variables.
+            </Typography>
+          </Box>
+        </div>
+      ) : (
       <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
         {/* Map Container */}
         <div ref={mapContainer} style={{ flex: 1 }} />
@@ -418,6 +443,7 @@ export default function MapPage() {
           </Box>
         )}
       </div>
+      )}
     </div>
   );
 }

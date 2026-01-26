@@ -167,7 +167,7 @@ public class ReportsFunction
             double.TryParse(query["zoom"], out var zoom);
 
             var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
-                                 ?? Environment.GetEnvironmentVariable("DefaultConnection");
+                                 ?? Environment.GetEnvironmentVariable("SqlConnectionString");
 
             if (string.IsNullOrEmpty(connectionString))
             {

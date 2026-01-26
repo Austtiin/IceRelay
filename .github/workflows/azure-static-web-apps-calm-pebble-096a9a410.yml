@@ -28,8 +28,12 @@ jobs:
           cd icethick
           npm ci
       - name: Build Next.js app
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
         run: |
           cd icethick
+          echo "Building with environment variables (values hidden for security)"
           npm run build
       - name: Build And Deploy
         id: builddeploy
