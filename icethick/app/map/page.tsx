@@ -10,8 +10,9 @@ import {CircularProgress, Typography, Box, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 
-// Set Mapbox token
+// Set Mapbox token from public env; if missing, we'll show a friendly message instead of crashing
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+const hasMapboxToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 interface Report {
   Id?: string;
@@ -44,6 +45,11 @@ export default function MapPage() {
 
   // Initialize map
   useEffect(() => {
+    if (!hasMapboxToken) {
+      console.error('Mapbox token is not configured. Set NEXT_PUBLIC_MAPBOX_TOKEN before building.');
+      return;
+    }
+
     if (!mapContainer.current || map.current) return;
 
     // Get URL params for initial position

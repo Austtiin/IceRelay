@@ -257,13 +257,15 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
 
     // Validate required fields
     if (!formData.lake || formData.lake.trim().length === 0) {
-      alert('Please enter a lake name');
+      setLocationError('Lake name is required before submitting');
+      setLocationStatus('error');
       setCurrentStep(2);
       return;
     }
 
     if (formData.thickness <= 0 || formData.thickness > 50) {
-      alert('Please enter a valid ice thickness between 0 and 50 inches');
+      setLocationError('Please enter a valid ice thickness between 0 and 50 inches');
+      setLocationStatus('error');
       setCurrentStep(3);
       return;
     }
@@ -282,8 +284,9 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
     } catch (error) {
       // Error handling is done in parent, but log here for debugging
       console.error('[Submit] Form submission error:', error);
-      // Show user-friendly error
-      alert('Failed to submit report. Please check your connection and try again.');
+      // Show inline error instead of a browser alert
+      setLocationError('Failed to submit report. Please check your connection and try again.');
+      setLocationStatus('error');
     } finally {
       setIsSubmitting(false);
     }

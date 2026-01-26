@@ -17,6 +17,7 @@ import SubmitReportForm, { ReportData } from './components/SubmitReportForm';
 import CookieConsent from './components/CookieConsent';
 import WaveDivider from './components/WaveDivider';
 import Notification, { NotificationType } from './components/Notification';
+import AdBox from './components/AdBox';
 import { trackReportSubmission } from './lib/analytics';
 
 interface NotificationState {
@@ -372,7 +373,7 @@ export default function Home() {
           </svg>
         </div>
 
-        {/* Recent Reports */}
+        {/* Recent Reports + Support Ads */}
         <section style={{ 
           padding: '4rem 0 5rem',
           background: '#fafbfc'
@@ -397,6 +398,11 @@ export default function Home() {
               }}>
                 Latest ice thickness data from the community
               </p>
+            </div>
+
+            {/* Small ad box to help keep the site free */}
+            <div style={{ margin: '0 auto 2rem', display: 'flex', justifyContent: 'center' }}>
+              <AdBox />
             </div>
 
             {isLoadingReports ? (
@@ -625,6 +631,13 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Support Ad near bottom of page */}
+        <section style={{ background: '#fafbfc', padding: '2rem 0 3rem' }}>
+          <div className="container" style={{ maxWidth: '900px', display: 'flex', justifyContent: 'center' }}>
+            <AdBox />
           </div>
         </section>
       </main>

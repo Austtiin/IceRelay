@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Notification, { NotificationType } from '../components/Notification';
 import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import SubmitReportForm from '../components/SubmitReportForm';
+import AdBox from '../components/AdBox';
 
 export default function NearMePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
   const [showLakeConfirmation, setShowLakeConfirmation] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: NotificationType } | null>(null);
   const [lakeSearch, setLakeSearch] = useState('');
   const [lakeSuggestions, setLakeSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -132,6 +135,11 @@ export default function NearMePage() {
         {/* Lake Selection */}
         <section style={{ padding: '2rem 0 1rem 0' }}>
           <div className="container" style={{ maxWidth: '800px' }}>
+            {/* Small ad near the top of the Near Me flow */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <AdBox />
+            </div>
+
             <div style={{
               background: 'white',
               padding: '1.5rem',
@@ -331,11 +339,11 @@ export default function NearMePage() {
                         } else if (error.code === error.TIMEOUT) {
                           errorMessage = 'Location request timed out. Please check your connection and try again.';
                         }
-                        alert(errorMessage);
+                        setNotification({ message: errorMessage, type: 'error' });
                       }
                     );
                   } else {
-                    alert('Geolocation is not supported by your browser.');
+                    setNotification({ message: 'Geolocation is not supported by your browser.', type: 'error' });
                   }
                 }}
                 style={{
@@ -418,7 +426,10 @@ export default function NearMePage() {
                 type="button"
                 onClick={() => {
                   setShowLakeConfirmation(false);
-                  alert('Please wait until you are actually on the lake before adding a report.');
+                  setNotification({
+                    message: 'Please wait until you are actually on the lake before adding a report.',
+                    type: 'warning'
+                  });
                 }}
                 style={{
                   minWidth: '120px',
@@ -463,6 +474,15 @@ export default function NearMePage() {
             console.log('Report submitted:', data);
             setIsSubmitFormOpen(false);
           }}
+        />
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
         />
       )}
     </div>
