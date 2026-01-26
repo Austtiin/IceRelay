@@ -3,6 +3,24 @@
     {
       "route": "/api/*",
       "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/_next/static/*",
+      "headers": {
+        "cache-control": "public, max-age=86400, immutable"
+      }
+    },
+    {
+      "route": "/*.{png,jpg,jpeg,gif,svg,webp,ico}",
+      "headers": {
+        "cache-control": "public, max-age=86400"
+      }
+    },
+    {
+      "route": "/*.{css,js}",
+      "headers": {
+        "cache-control": "public, max-age=86400"
+      }
     }
   ],
   "navigationFallback": {

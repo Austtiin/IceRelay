@@ -1,44 +1,77 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import SubmitReportForm from '../components/SubmitReportForm';
 
-const MINNESOTA_LAKES = [
-  'Lake Minnetonka',
-  'White Bear Lake',
-  'Lake Calhoun (Bde Maka Ska)',
-  'Lake Harriet',
-  'Lake of the Isles',
-  'Lake Nokomis',
-  'Cedar Lake',
-  'Medicine Lake',
-  'Lake Phalen',
-  'Como Lake',
-  'Bald Eagle Lake',
-  'Forest Lake',
-  'Prior Lake',
-  'Lake Elmo',
-  'Square Lake'
-];
-
 export default function NearMePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
-  const [selectedLake, setSelectedLake] = useState('');
+  const [showLakeConfirmation, setShowLakeConfirmation] = useState(false);
+  const [lakeSearch, setLakeSearch] = useState('');
+  const [lakeSuggestions, setLakeSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement | null>(null);
+
+  const handleLakeSearchChange = async (value: string) => {
+    setLakeSearch(value);
+
+    if (value.trim().length < 2) {
+      setLakeSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { api } = await import('../../lib/api');
+      const results = await api.searchLakes(value);
+      setLakeSuggestions(results.slice(0, 10));
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('[NearMe] Error searching lakes:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleLakeSelect = (lake: any) => {
+    const lakeName = lake.LakeName || lake.lakeName;
+    const lat = lake.Latitude || lake.latitude;
+    const lng = lake.Longitude || lake.longitude;
+
+    setLakeSearch(lakeName);
+    setShowSuggestions(false);
+
+    if (lat && lng) {
+      window.location.href = `/map?lake=${encodeURIComponent(lakeName)}&lat=${lat}&lng=${lng}`;
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div suppressHydrationWarning style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header 
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => setIsSubmitFormOpen(true)}
+        onNewReport={() => setShowLakeConfirmation(true)}
       />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => setIsSubmitFormOpen(true)}
+        onNewReport={() => setShowLakeConfirmation(true)}
       />
 
       <main style={{ flex: 1, background: '#fafbfc' }}>
@@ -115,14 +148,20 @@ export default function NearMePage() {
               }}>
                 🔍 Search for a Specific Lake
               </h2>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem'
-              }}>
-                <select
-                  value={selectedLake}
-                  onChange={(e) => setSelectedLake(e.target.value)}
+              <div
+                ref={searchRef}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}
+              >
+                <input
+                  type="text"
+                  value={lakeSearch}
+                  onChange={(e) => handleLakeSearchChange(e.target.value)}
+                  placeholder="Start typing to search for a lake..."
                   style={{
                     width: '100%',
                     padding: '0.875rem',
@@ -131,57 +170,106 @@ export default function NearMePage() {
                     fontSize: '1rem',
                     background: 'white'
                   }}
-                >
-                  <option value="">Select a lake...</option>
-                  {MINNESOTA_LAKES.map(lake => (
-                    <option key={lake} value={lake}>{lake}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => {
-                    if (selectedLake) {
-                      console.log('Searching for:', selectedLake);
-                      // TODO: Fetch reports for selected lake from API
-                      alert(`Showing reports for ${selectedLake}`);
-                    } else {
-                      alert('Please select a lake first');
-                    }
-                  }}
-                  disabled={!selectedLake}
-                  style={{
-                    width: '100%',
-                    background: selectedLake ? 'var(--primary-dark)' : '#ccc',
-                    color: 'white',
-                    border: 'none',
-                    padding: '0.875rem 2rem',
-                    borderRadius: '0.5rem',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    cursor: selectedLake ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedLake) {
-                      e.currentTarget.style.background = 'var(--primary-medium)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedLake) {
-                      e.currentTarget.style.background = 'var(--primary-dark)';
-                    }
-                  }}
-                >
-                  Search
-                </button>
+                />
+
+                {isSearching && (
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic'
+                  }}>
+                    Searching lakes...
+                  </div>
+                )}
+
+                {showSuggestions && lakeSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'white',
+                    border: '2px solid var(--primary-light)',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    maxHeight: '240px',
+                    overflowY: 'auto',
+                    marginTop: '0.25rem',
+                    zIndex: 10
+                  }}>
+                    {lakeSuggestions.map((suggestion, idx) => {
+                      const lakeName = suggestion.LakeName || suggestion.lakeName || 'Unknown Lake';
+                      const reportCount = suggestion.ReportCount || suggestion.reportCount || 0;
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleLakeSelect(suggestion)}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem 1rem',
+                            textAlign: 'left',
+                            border: 'none',
+                            borderBottom: idx < lakeSuggestions.length - 1 ? '1px solid var(--primary-light)' : 'none',
+                            background: 'white',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--primary-light)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'white';
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
+                            {lakeName}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                            {reportCount} report{reportCount !== 1 ? 's' : ''}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {lakeSearch.trim().length >= 2 && !isSearching && lakeSuggestions.length === 0 && (
+                  <p style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    We either don't have a record yet or can't find the lake you're looking for. If you're on the lake right now,{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowLakeConfirmation(true)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        padding: 0,
+                        margin: 0,
+                        color: 'var(--primary-dark)',
+                        fontWeight: 600,
+                        textDecoration: 'underline',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      feel free to add a new report
+                    </button>
+                    .
+                  </p>
+                )}
+
+                <p style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)'
+                }}>
+                  Can't find your lake? Try searching by common abbreviations or alternate names (e.g., "Lake of the Woods" as "LOW").
+                </p>
               </div>
-              <p style={{
-                marginTop: '1rem',
-                fontSize: '0.875rem',
-                color: 'var(--text-secondary)',
-                textAlign: 'center'
-              }}>
-                Select any lake to view ice thickness reports for that specific location
-              </p>
             </div>
 
             <div style={{
@@ -230,10 +318,20 @@ export default function NearMePage() {
                     navigator.geolocation.getCurrentPosition(
                       (position) => {
                         console.log('Location:', position.coords);
-                        // TODO: Fetch reports from API based on location
+                        const { latitude, longitude } = position.coords;
+                        // Send the user straight to the map, centered on their location
+                        window.location.href = `/map?lat=${latitude}&lng=${longitude}&zoom=11`;
                       },
                       (error) => {
-                        alert('Unable to get location. Please enable location services.');
+                        let errorMessage = 'Unable to get your location.';
+                        if (error.code === error.PERMISSION_DENIED) {
+                          errorMessage = 'Location access was denied. Please go into your browser settings and enable location access. We require location data to prevent spam and ensure reports are from actual lake locations.';
+                        } else if (error.code === error.POSITION_UNAVAILABLE) {
+                          errorMessage = 'Location information is unavailable right now. Please try again in a moment.';
+                        } else if (error.code === error.TIMEOUT) {
+                          errorMessage = 'Location request timed out. Please check your connection and try again.';
+                        }
+                        alert(errorMessage);
                       }
                     );
                   } else {
@@ -267,6 +365,96 @@ export default function NearMePage() {
       </main>
 
       <Footer />
+
+      {/* Lake Confirmation Dialog */}
+      {showLakeConfirmation && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={() => setShowLakeConfirmation(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: 'var(--primary-dark)',
+              marginBottom: '1rem',
+              textAlign: 'center'
+            }}>
+              Are you currently on the lake?
+            </h2>
+            <p style={{
+              fontSize: '0.95rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1.75rem',
+              textAlign: 'center',
+              lineHeight: 1.6
+            }}>
+              To keep reports accurate and trustworthy, please only submit a new report while you are physically on the lake you are measuring. We capture your GPS location with each report to verify this.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLakeConfirmation(false);
+                  alert('Please wait until you are actually on the lake before adding a report.');
+                }}
+                style={{
+                  minWidth: '120px',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--border-color)',
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLakeConfirmation(false);
+                  setIsSubmitFormOpen(true);
+                }}
+                style={{
+                  minWidth: '120px',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  background: 'var(--primary-dark)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Yes, I'm on the lake
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isSubmitFormOpen && (
         <SubmitReportForm

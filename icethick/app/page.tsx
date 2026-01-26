@@ -1,14 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import CircularProgress from '@mui/material/CircularProgress';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
-import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -46,13 +43,6 @@ export default function Home() {
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
-  
-  // Lake search state
-  const [lakeSearch, setLakeSearch] = useState('');
-  const [lakeSuggestions, setLakeSuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
 
   // Fetch reports on component mount
   useEffect(() => {
@@ -124,48 +114,6 @@ export default function Home() {
       type: 'warning'
     });
   };
-
-  // Lake search handler
-  const handleLakeSearchChange = async (value: string) => {
-    setLakeSearch(value);
-    
-    if (value.trim().length < 2) {
-      setLakeSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const { api } = await import('../lib/api');
-      const results = await api.searchLakes(value);
-      setLakeSuggestions(results.slice(0, 10));
-      setShowSuggestions(true);
-    } catch (error) {
-      console.error('Error searching lakes:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleLakeSelect = (lake: any) => {
-    setLakeSearch(lake.LakeName || lake.lakeName);
-    setShowSuggestions(false);
-    // Navigate to map view with this lake selected
-    window.location.href = `/map?lake=${encodeURIComponent(lake.LakeName || lake.lakeName)}&lat=${lake.Latitude || lake.latitude}&lng=${lake.Longitude || lake.longitude}`;
-  };
-
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const getTimeAgo = (createdAt?: string | Date): string => {
     if (!createdAt) return 'Just now';
@@ -363,7 +311,7 @@ export default function Home() {
               margin: '0 auto 2.5rem',
               textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
             }}>
-              Community-reported ice conditions. Real-time data from fellow ice enthusiasts.
+              Community-reported ice fishing conditions. Stay safe with real-time ice thickness reports from anglers like you.
             </p>
             <div style={{
               display: 'flex',
@@ -448,110 +396,6 @@ export default function Home() {
                 marginBottom: '1.5rem'
               }}>
                 Latest ice thickness data from the community
-              </p>
-              
-              {/* Lake Search */}
-              <div ref={searchRef} style={{ maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
-                <TextField
-                  fullWidth
-                  placeholder="Search for a specific lake..."
-                  value={lakeSearch}
-                  onChange={(e) => handleLakeSearchChange(e.target.value)}
-                  onFocus={() => lakeSuggestions.length > 0 && setShowSuggestions(true)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon sx={{ color: 'var(--text-secondary)' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    backgroundColor: 'white',
-                    borderRadius: '8px',
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': {
-                        borderColor: 'var(--border-color)',
-                      },
-                      '&:hover fieldset': {
-                        borderColor: 'var(--primary-main)',
-                      },
-                    }
-                  }}
-                />
-                
-                {/* Search Suggestions Dropdown */}
-                {showSuggestions && lakeSuggestions.length > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                    maxHeight: '300px',
-                    overflowY: 'auto',
-                    zIndex: 1000,
-                    marginTop: '4px'
-                  }}>
-                    {lakeSuggestions.map((lake, index) => {
-                      const lakeName = lake.LakeName || lake.lakeName;
-                      const reportCount = lake.ReportCount || lake.reportCount || 0;
-                      
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => handleLakeSelect(lake)}
-                          style={{
-                            width: '100%',
-                            padding: '12px 16px',
-                            textAlign: 'left',
-                            border: 'none',
-                            backgroundColor: 'white',
-                            cursor: 'pointer',
-                            borderBottom: index < lakeSuggestions.length - 1 ? '1px solid var(--border-color)' : 'none',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                        >
-                          <div style={{ fontWeight: 500, color: 'var(--primary-dark)' }}>
-                            {lakeName}
-                          </div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                            {reportCount} report{reportCount !== 1 ? 's' : ''}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Can't find lake message */}
-              <p style={{ 
-                color: 'var(--text-secondary)',
-                fontSize: '0.9rem',
-                marginTop: '1rem'
-              }}>
-                Can't see what you're looking for?{' '}
-                <Button
-                  size="small"
-                  onClick={handleNewReportClick}
-                  sx={{
-                    textTransform: 'none',
-                    padding: '0',
-                    minWidth: 'auto',
-                    fontWeight: 600,
-                    '&:hover': {
-                      backgroundColor: 'transparent',
-                      textDecoration: 'underline'
-                    }
-                  }}
-                >
-                  Consider adding the lake/report you're measuring ice thickness
-                </Button>
               </p>
             </div>
 
@@ -835,7 +679,7 @@ export default function Home() {
                 textAlign: 'center'
               }}
             >
-              To ensure accurate ice thickness reports, you must be physically present on the lake where you're measuring. This helps maintain the reliability of our data for the community.
+              To ensure accurate ice thickness reports, you must be physically present on the lake where you're measuring. We capture your GPS location with each report so we can verify you are actually on the lake and keep the data trustworthy for everyone.
             </Typography>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <Button

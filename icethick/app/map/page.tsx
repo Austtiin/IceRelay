@@ -104,6 +104,7 @@ export default function MapPage() {
       const bounds = map.current.getBounds();
       if (!bounds) return;
       const zoom = map.current.getZoom();
+      setCurrentZoom(zoom);
       
       fetchReportsInBounds({
         north: bounds.getNorth(),
@@ -149,28 +150,43 @@ export default function MapPage() {
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Show markers only when zoomed in
-    if (currentZoom >= 6) {
-      reports.forEach(report => {
-        if (!map.current) return;
-        
-        const lakeName = report.LakeName || report.lakeName || 'Unknown';
-        const lat = report.Latitude || report.latitude || 0;
-        const lng = report.Longitude || report.longitude || 0;
-        const thickness = report.Thickness || report.thickness || 0;
-        const surfaceType = report.SurfaceType || report.surfaceType || 'unknown';
-        const createdAt = report.CreatedAt || report.createdAt || new Date().toISOString();
-        
-        // Create marker element
-        const el = document.createElement('div');
+    // Show a softer "heatmap" style when zoomed out, and detailed pins when zoomed in
+    reports.forEach(report => {
+      if (!map.current) return;
+
+      const lakeName = report.LakeName || report.lakeName || 'Unknown';
+      const lat = report.Latitude || report.latitude || 0;
+      const lng = report.Longitude || report.longitude || 0;
+      const thickness = report.Thickness || report.thickness || 0;
+      const surfaceType = report.SurfaceType || report.surfaceType || 'unknown';
+      const createdAt = report.CreatedAt || report.createdAt || new Date().toISOString();
+
+      // Skip invalid coordinates
+      if (!lat || !lng) return;
+
+      let el: HTMLDivElement;
+      let marker: mapboxgl.Marker;
+
+      if (currentZoom < 6) {
+        // Low-zoom: larger red heat-style dot for visibility on grey basemap
+        el = document.createElement('div');
+        el.className = 'ice-report-heat-dot';
+        el.style.width = '26px';
+        el.style.height = '26px';
+        el.style.borderRadius = '50%';
+        el.style.background = 'radial-gradient(circle, rgba(231,76,60,0.85) 0%, rgba(231,76,60,0.0) 75%)';
+        el.style.pointerEvents = 'none';
+        marker = new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map.current);
+      } else {
+        // High-zoom: detailed pin with popup
+        el = document.createElement('div');
         el.className = 'ice-report-marker';
         el.style.backgroundImage = 'url(/pin-marker.svg)';
         el.style.width = '32px';
         el.style.height = '40px';
         el.style.backgroundSize = 'cover';
         el.style.cursor = 'pointer';
-        
-        // Create popup
+
         const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
           <div style="padding: 8px;">
             <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: var(--primary-dark);">${lakeName}</h3>
@@ -179,16 +195,15 @@ export default function MapPage() {
             <p style="margin: 4px 0; font-size: 0.85rem; color: var(--text-secondary);">${getTimeAgo(createdAt)}</p>
           </div>
         `);
-        
-        // Create and add marker
-        const marker = new mapboxgl.Marker(el)
+
+        marker = new mapboxgl.Marker(el)
           .setLngLat([lng, lat])
           .setPopup(popup)
           .addTo(map.current);
-        
-        markers.current.push(marker);
-      });
-    }
+      }
+
+      markers.current.push(marker);
+    });
   };
 
   // Time ago helper
@@ -392,7 +407,7 @@ export default function MapPage() {
             }}
           >
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>
-              Zoom in to see individual reports
+              Zoom in to see individual report details
             </Typography>
           </Box>
         )}

@@ -130,6 +130,8 @@ public class ReportsFunction
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
+            // Cache recent reports for 1 hour; other APIs remain uncached
+            response.Headers.Add("Cache-Control", "public, max-age=3600");
             await response.WriteAsJsonAsync(reports);
             return response;
         }

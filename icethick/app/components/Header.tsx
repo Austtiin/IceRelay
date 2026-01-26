@@ -21,7 +21,7 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
       top: 0,
       zIndex: 50,
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-      height: '110px'
+      height: '120px'
     }}>
       <div className="container" style={{ 
         display: 'flex', 
@@ -42,9 +42,9 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             <Image
               src="/IceRelay.png"
               alt="Ice Relay"
-              width={140}
-              height={39}
-              style={{ height: 'auto', width: 'auto', maxHeight: '95px', maxWidth: '350px', objectFit: 'contain' }}
+              width={200}
+              height={56}
+              style={{ height: 'auto', width: 'auto', maxHeight: '105px', maxWidth: '420px', objectFit: 'contain' }}
               priority
             />
           </div>
