@@ -1,81 +1,131 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import CircularProgress from '@mui/material/CircularProgress';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import AddIcon from '@mui/icons-material/Add';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import ReportCard from './components/ReportCard';
 import SubmitReportForm, { ReportData } from './components/SubmitReportForm';
-import DisclaimerModal from './components/DisclaimerModal';
+import CookieConsent from './components/CookieConsent';
 import WaveDivider from './components/WaveDivider';
+import Notification, { NotificationType } from './components/Notification';
+import { trackReportSubmission } from './lib/analytics';
+
+interface NotificationState {
+  message: string;
+  type: NotificationType;
+}
+
+interface Report {
+  id: string | number;
+  lakeName: string;
+  thickness: number;
+  timeAgo: string;
+  location?: string;
+  quality?: string[];
+  reportCount: number;
+  surfaceType: string;
+  isMeasured: boolean;
+}
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
-  const [reports, setReports] = useState([
-    {
-      id: 1,
-      lakeName: 'Lake Minnetonka',
-      thickness: 5.5,
-      timeAgo: '2 hours ago',
-      location: 'West shore',
-      quality: ['Foot traffic only'],
-      reportCount: 3,
-      surfaceType: 'Clear ice',
-      isMeasured: true
-    },
-    {
-      id: 2,
-      lakeName: 'White Bear Lake',
-      thickness: 11,
-      timeAgo: '5 hours ago',
-      location: 'East bay',
-      quality: [],
-      reportCount: 2,
-      surfaceType: 'Snow-covered',
-      isMeasured: true
-    },
-    {
-      id: 3,
-      lakeName: 'Lake Calhoun (Bde Maka Ska)',
-      thickness: 3,
-      timeAgo: '2 days ago',
-      location: 'Center',
-      quality: ['Pressure cracks'],
-      reportCount: 1,
-      surfaceType: 'Slush',
-      isMeasured: false
-    },
-    {
-      id: 4,
-      lakeName: 'Lake Harriet',
-      thickness: 9,
-      timeAgo: '3 hours ago',
-      location: 'North shore',
-      quality: [],
-      reportCount: 4,
-      surfaceType: 'Clear ice',
-      isMeasured: true
-    },
-    {
-      id: 5,
-      lakeName: 'Como Lake',
-      thickness: 13,
-      timeAgo: '8 hours ago',
-      location: 'South side',
-      quality: [],
-      reportCount: 2,
-      surfaceType: 'Refrozen',
-      isMeasured: true
+  const [notification, setNotification] = useState<NotificationState | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
+
+  // Fetch reports on component mount
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      setIsLoadingReports(true);
+      const { api } = await import('../lib/api');
+      const fetchedReports = await api.getReports();
+      
+      // Transform API reports to display format
+      // Backend returns PascalCase, so we need to handle both cases
+      const displayReports = fetchedReports.map((report) => ({
+        id: report.Id || report.id || Math.random().toString(),
+        lakeName: report.LakeName || report.lakeName || 'Unknown location',
+        thickness: report.Thickness || report.thickness,
+        timeAgo: getTimeAgo(report.CreatedAt || report.createdAt),
+        location: report.Location || report.location,
+        quality: report.IceQuality || report.iceQuality || [],
+        reportCount: 1, // This would need aggregation in the API
+        surfaceType: formatSurfaceType(report.SurfaceType || report.surfaceType),
+        isMeasured: report.IsMeasured !== undefined ? report.IsMeasured : report.isMeasured
+      }));
+      
+      setReports(displayReports);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      setNotification({
+        message: 'Failed to load reports. Please try again.',
+        type: 'error'
+      });
+      setReports([]);
+    } finally {
+      setIsLoadingReports(false);
     }
-  ]);
+  };
+
+  const getTimeAgo = (createdAt?: string | Date): string => {
+    if (!createdAt) return 'Just now';
+    
+    const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+    const now = new Date();
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date:', createdAt);
+      return 'Just now';
+    }
+    
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    // Debug logging
+    console.log('Date comparison:', { 
+      createdAt, 
+      parsed: date.toISOString(), 
+      now: now.toISOString(), 
+      diffMs, 
+      diffMins, 
+      diffHours 
+    });
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  };
+
+  const formatSurfaceType = (type?: string): string => {
+    if (!type) return 'Unknown';
+    
+    const typeMap: Record<string, string> = {
+      'clear': 'Clear ice',
+      'snow': 'Snow-covered',
+      'slush': 'Slush',
+      'refrozen': 'Refrozen',
+      'snow-covered': 'Snow-covered'
+    };
+    return typeMap[type.toLowerCase()] || type;
+  };
 
   const handleSubmitReport = async (data: ReportData) => {
     try {
@@ -83,32 +133,30 @@ export default function Home() {
       const { api } = await import('../lib/api');
       
       // Create report via API (will retry 3 times automatically)
-      const newReport = await api.createReport(data);
+      await api.createReport(data);
       
-      // Add to local state for immediate UI update
-      const displayReport = {
-        id: reports.length + 1,
-        lakeName: newReport.lakeName || 'Unknown location',
-        thickness: newReport.thickness,
-        timeAgo: 'Just now',
-        location: data.location || 'GPS location',
-        quality: data.iceQuality,
-        reportCount: 1,
-        surfaceType: data.surfaceType,
-        isMeasured: data.isMeasured
-      };
-      
-      setReports([displayReport, ...reports]);
       setIsSubmitFormOpen(false);
       
-      // Success message
-      alert('✅ Success! Your ice report has been submitted and will help keep the community safe. Thank you!');
+      // Track report submission in analytics
+      trackReportSubmission(data.lake || 'Unknown', data.thickness);
+      
+      // Success notification
+      setNotification({
+        message: 'Success! Your ice report has been submitted and will help keep the community safe. Thank you!',
+        type: 'success'
+      });
+
+      // Refresh the reports list to show the new report
+      await fetchReports();
     } catch (error) {
       console.error('Failed to submit report:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Failed after 3 retries
-      alert(`❌ Failed to submit report after 3 attempts.\n\n${errorMessage}\n\nPlease check your connection and try again.`);
+      // Failed notification
+      setNotification({
+        message: `Failed to submit report after 3 attempts. ${errorMessage}. Please check your connection and try again.`,
+        type: 'error'
+      });
     }
   };
 
@@ -122,8 +170,21 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <DisclaimerModal />
-      <Header onMenuToggle={() => setIsMenuOpen(!isMenuOpen)} />
+      <CookieConsent />
+      
+      {/* Notification Toast */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+      
+      <Header 
+        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
+        onNewReport={() => setIsSubmitFormOpen(true)}
+      />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
@@ -198,7 +259,7 @@ export default function Home() {
               <Button
                 variant="outlined"
                 size="large"
-                startIcon={<AddIcon />}
+                startIcon={<EditNoteIcon />}
                 onClick={() => setIsSubmitFormOpen(true)}
                 sx={{
                   borderColor: 'white',
@@ -218,6 +279,33 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Wave Divider Transition */}
+        <div style={{
+          position: 'relative',
+          height: '120px',
+          overflow: 'hidden',
+          background: 'linear-gradient(180deg, #577399 0%, #fafbfc 100%)'
+        }}>
+          <svg
+            viewBox="0 0 1440 120"
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'block'
+            }}
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M0,60 C240,90 360,30 600,60 C840,90 960,30 1200,60 L1200,0 L0,0 Z"
+              fill="rgba(87, 115, 153, 0.95)"
+            />
+            <path
+              d="M0,80 C240,50 360,110 600,80 C840,50 960,110 1200,80 L1200,120 L0,120 Z"
+              fill="#fafbfc"
+            />
+          </svg>
+        </div>
 
         {/* Recent Reports */}
         <section style={{ 
@@ -245,46 +333,93 @@ export default function Home() {
               </p>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '2rem'
-            }}>
-              {reports.slice(0, 6).map(report => (
-                <ReportCard
-                  key={report.id}
-                  lakeName={report.lakeName}
-                  thickness={report.thickness}
-                  timeAgo={report.timeAgo}
-                  location={report.location}
-                  quality={report.quality}
-                  reportCount={report.reportCount}
-                  surfaceType={report.surfaceType}
-                  isMeasured={report.isMeasured}
+            {isLoadingReports ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '4rem 2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1.5rem'
+              }}>
+                <CircularProgress 
+                  size={60} 
+                  thickness={4}
+                  sx={{ 
+                    color: 'var(--primary-main)',
+                    '& .MuiCircularProgress-circle': {
+                      strokeLinecap: 'round',
+                    }
+                  }} 
                 />
-              ))}
-            </div>
+                <Typography 
+                  variant="body1" 
+                  color="text.secondary"
+                  sx={{ fontSize: '1.1rem' }}
+                >
+                  Loading ice reports...
+                </Typography>
+              </div>
+            ) : reports.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem' }}>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No reports yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Be the first to submit an ice thickness report!
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<EditNoteIcon />}
+                  onClick={() => setIsSubmitFormOpen(true)}
+                >
+                  Submit First Report
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '1.5rem',
+                  marginBottom: '2rem'
+                }}>
+                  {reports.slice(0, 6).map(report => (
+                    <ReportCard
+                      key={report.id}
+                      lakeName={report.lakeName}
+                      thickness={report.thickness}
+                      timeAgo={report.timeAgo}
+                      location={report.location}
+                      quality={report.quality}
+                      reportCount={report.reportCount}
+                      surfaceType={report.surfaceType}
+                      isMeasured={report.isMeasured}
+                    />
+                  ))}
+                </div>
 
-            <div style={{ textAlign: 'center' }}>
-              <Button
-                variant="outlined"
-                size="large"
-                endIcon={<ArrowForwardIcon />}
-                href="/near-me"
-                sx={{
-                  borderColor: 'primary.dark',
-                  color: 'primary.dark',
-                  '&:hover': {
-                    borderColor: 'primary.dark',
-                    bgcolor: 'primary.dark',
-                    color: 'white',
-                  },
-                }}
-              >
-                View All Reports Near Me
-              </Button>
-            </div>
+                <div style={{ textAlign: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    endIcon={<ArrowForwardIcon />}
+                    href="/near-me"
+                    sx={{
+                      borderColor: 'primary.dark',
+                      color: 'primary.dark',
+                      '&:hover': {
+                        borderColor: 'primary.dark',
+                        bgcolor: 'primary.dark',
+                        color: 'white',
+                      },
+                    }}
+                  >
+                    View All Reports Near Me
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </section>
 

@@ -6,16 +6,17 @@ import Link from 'next/link';
 
 interface HeaderProps {
   onMenuToggle: () => void;
+  onNewReport: () => void;
 }
 
-export default function Header({ onMenuToggle }: HeaderProps) {
+export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
   const [locationEnabled, setLocationEnabled] = useState(false);
 
   return (
     <header style={{ 
       background: 'white',
       borderBottom: '1px solid #e9ecef',
-      padding: '0.5rem 0',
+      padding: '0.375rem 0',
       position: 'sticky',
       top: 0,
       zIndex: 50,
@@ -37,8 +38,8 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             <Image
               src="/IceRelay.png"
               alt="Ice Relay"
-              width={140}
-              height={40}
+              width={120}
+              height={34}
               style={{ height: 'auto' }}
               priority
             />
@@ -79,7 +80,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             📍 View Ice Near Me
           </Link>
           <button
-            onClick={() => {/* Will open submit modal */}}
+            onClick={onNewReport}
             style={{
               background: 'var(--primary-dark)',
               color: 'white',

@@ -44,3 +44,19 @@ public class LakeReportsRequest
 {
     public string LakeName { get; set; } = "";
 }
+
+public class LakeSuggestion
+{
+    public string? LakeName { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public int ReportCount { get; set; }
+    public double DistanceKm { get; set; }
+    public DateTime? LastReportDate { get; set; }
+}
+
+public class DetectLakeRequest
+{
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+}

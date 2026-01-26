@@ -31,7 +31,10 @@ export default function NearMePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header onMenuToggle={() => setIsMenuOpen(!isMenuOpen)} />
+      <Header 
+        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
+        onNewReport={() => {}}
+      />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
@@ -278,7 +281,7 @@ export default function NearMePage() {
       {isSubmitFormOpen && (
         <SubmitReportForm
           onClose={() => setIsSubmitFormOpen(false)}
-          onSubmit={(data) => {
+          onSubmit={async (data) => {
             console.log('Report submitted:', data);
             setIsSubmitFormOpen(false);
           }}

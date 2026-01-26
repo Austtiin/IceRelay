@@ -154,7 +154,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
               e.currentTarget.style.transform = 'translateX(0)';
             }}
           >
-            <span style={{ fontSize: '1.25rem' }}>➕</span>
+            <span style={{ fontSize: '1.25rem' }}>📝</span>
             <span>New Report</span>
           </button>
 

@@ -10,7 +10,10 @@ export default function SafetyGuidePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header onMenuToggle={() => setIsMenuOpen(!isMenuOpen)} />
+      <Header 
+        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
+        onNewReport={() => {}}
+      />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}

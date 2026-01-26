@@ -26,17 +26,29 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = MAX_
 
 export interface IceReport {
   id?: string;
+  Id?: string;  // Backend returns PascalCase
   lakeName?: string;
+  LakeName?: string;  // Backend returns PascalCase
   thickness: number;
+  Thickness?: number;  // Backend returns PascalCase
   location?: string;
+  Location?: string;  // Backend returns PascalCase
   latitude: number;
+  Latitude?: number;  // Backend returns PascalCase
   longitude: number;
+  Longitude?: number;  // Backend returns PascalCase
   surfaceType: string;
+  SurfaceType?: string;  // Backend returns PascalCase
   isMeasured: boolean;
+  IsMeasured?: boolean;  // Backend returns PascalCase
   method?: string;
+  Method?: string;  // Backend returns PascalCase
   iceQuality?: string[];
+  IceQuality?: string[];  // Backend returns PascalCase
   notes?: string;
+  Notes?: string;  // Backend returns PascalCase
   createdAt?: string;
+  CreatedAt?: string;  // Backend returns PascalCase
   reportCount?: number;
 }
 
@@ -60,18 +72,37 @@ export interface NearbyReportsRequest {
   radiusKm?: number;
 }
 
+export interface LakeSuggestion {
+  lakeName?: string;
+  latitude: number;
+  longitude: number;
+  reportCount: number;
+  distanceKm?: number;
+  lastReportDate?: string;
+}
+
+export interface DetectLakeRequest {
+  latitude: number;
+  longitude: number;
+}
+
 export const api = {
   // Get all reports
   async getReports(): Promise<IceReport[]> {
+    console.log('[API] GET /reports - Fetching all reports');
     const response = await fetchWithRetry(`${API_BASE_URL}/reports`);
     if (!response.ok) {
+      console.error('[API] GET /reports - Failed:', response.status, response.statusText);
       throw new Error('Failed to fetch reports');
     }
-    return response.json();
+    const data = await response.json();
+    console.log('[API] GET /reports - Success:', data);
+    return data;
   },
 
   // Create a new report with retry logic
   async createReport(data: CreateReportData): Promise<IceReport> {
+    console.log('[API] POST /reports - Payload:', data);
     const response = await fetchWithRetry(`${API_BASE_URL}/reports`, {
       method: 'POST',
       headers: {
@@ -82,10 +113,13 @@ export const api = {
     
     if (!response.ok) {
       const error = await response.text();
+      console.error('[API] POST /reports - Failed:', response.status, error);
       throw new Error(error || 'Failed to create report');
     }
     
-    return response.json();
+    const result = await response.json();
+    console.log('[API] POST /reports - Success:', result);
+    return result;
   },
 
   // Get nearby reports
@@ -115,5 +149,61 @@ export const api = {
     }
     
     return response.json();
+  },
+
+  // Detect lake by GPS coordinates
+  async detectLake(request: DetectLakeRequest): Promise<LakeSuggestion | null> {
+    console.log('[API] POST /reports/detect-lake - Payload:', request);
+    try {
+      const response = await fetchWithRetry(`${API_BASE_URL}/reports/detect-lake`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+      
+      if (response.status === 404) {
+        console.log('[API] POST /reports/detect-lake - No lake found (404)');
+        return null;
+      }
+      
+      if (!response.ok) {
+        console.error('[API] POST /reports/detect-lake - Failed:', response.status, response.statusText);
+        throw new Error('Failed to detect lake');
+      }
+      
+      const result = await response.json();
+      console.log('[API] POST /reports/detect-lake - Success:', result);
+      return result;
+    } catch (error) {
+      console.error('[API] POST /reports/detect-lake - Error:', error);
+      return null;
+    }
+  },
+
+  // Search lake names (autocomplete)
+  async searchLakes(query: string): Promise<LakeSuggestion[]> {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    console.log('[API] GET /reports/search-lakes - Query:', query);
+    try {
+      const encodedQuery = encodeURIComponent(query);
+      const response = await fetchWithRetry(`${API_BASE_URL}/reports/search-lakes?q=${encodedQuery}`);
+      
+      if (!response.ok) {
+        console.error('[API] GET /reports/search-lakes - Failed:', response.status);
+        return [];
+      }
+      
+      const results = await response.json();
+      console.log('[API] GET /reports/search-lakes - Results:', results);
+      return results;
+    } catch (error) {
+      console.error('[API] GET /reports/search-lakes - Error:', error);
+      return [];
+    }
   },
 };
