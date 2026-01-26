@@ -39,9 +39,9 @@ public class ReportsFunction
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
 
-            // Get the 10 most recent reports that haven't expired
+            // Get the 6 most recent reports that haven't expired
             var sql = @"
-                SELECT TOP 10
+                SELECT TOP 6
                     ReportId,
                     LakeName,
                     Latitude,
@@ -90,6 +90,12 @@ public class ReportsFunction
                     }
                 }
 
+                // Read CreatedAt and specify it's UTC (database stores UTC)
+                var createdAtUtc = DateTime.SpecifyKind(
+                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                    DateTimeKind.Utc
+                );
+
                 var report = new IceReport
                 {
                     Id = reader["ReportId"].ToString(),
@@ -100,7 +106,7 @@ public class ReportsFunction
                     Longitude = Convert.ToDouble(reader["Longitude"]),
                     SurfaceType = (reader["SurfaceType"] as string)?.ToLower() ?? "clear",
                     IsMeasured = (reader["MeasurementType"] as string) == "Measured",
-                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                    CreatedAt = createdAtUtc,
                     IceQuality = iceQuality
                 };
 
@@ -108,6 +114,20 @@ public class ReportsFunction
             }
 
             _logger.LogInformation($"Retrieved {reports.Count} reports from database");
+            
+            // Log the order of reports being returned with detailed timestamp info
+            for (int i = 0; i < reports.Count && i < 6; i++)
+            {
+                var createdTicks = reports[i].CreatedAt.Ticks;
+                _logger.LogInformation($"Report[{i}]: {reports[i].LakeName} - CreatedAt: {reports[i].CreatedAt:O} (Ticks: {createdTicks})");
+            }
+            
+            // Log if there's an ordering issue
+            if (reports.Count >= 2)
+            {
+                var isDescending = reports[0].CreatedAt >= reports[1].CreatedAt;
+                _logger.LogInformation($"Order check: First report is {(isDescending ? "NEWER" : "OLDER")} than second - {(isDescending ? "CORRECT" : "WRONG")}");
+            }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(reports);
@@ -116,6 +136,136 @@ public class ReportsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving reports");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("An error occurred while retrieving reports");
+            return errorResponse;
+        }
+    }
+
+    [Function("GetReportsInBounds")]
+    public async Task<HttpResponseData> GetReportsInBounds(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/bounds")] HttpRequestData req)
+    {
+        _logger.LogInformation("Getting reports within map bounds");
+
+        try
+        {
+            // Parse query parameters
+            var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+            if (!double.TryParse(query["north"], out var north) ||
+                !double.TryParse(query["south"], out var south) ||
+                !double.TryParse(query["east"], out var east) ||
+                !double.TryParse(query["west"], out var west))
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync("Invalid bounds parameters");
+                return errorResponse;
+            }
+
+            double.TryParse(query["zoom"], out var zoom);
+
+            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
+                                 ?? Environment.GetEnvironmentVariable("DefaultConnection");
+
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                _logger.LogError("Database connection string not found");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Database configuration error");
+                return errorResponse;
+            }
+
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            // Get reports within bounds, limit to 100
+            var sql = @"
+                SELECT TOP 100
+                    ReportId,
+                    LakeName,
+                    Latitude,
+                    Longitude,
+                    IceThicknessIn,
+                    MeasurementType,
+                    SurfaceType,
+                    Notes,
+                    CreatedAt
+                FROM IceReports
+                WHERE ExpiresAt > SYSUTCDATETIME()
+                  AND Latitude BETWEEN @south AND @north
+                  AND Longitude BETWEEN @west AND @east
+                ORDER BY CreatedAt DESC;";
+
+            await using var command = new SqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@north", north);
+            command.Parameters.AddWithValue("@south", south);
+            command.Parameters.AddWithValue("@east", east);
+            command.Parameters.AddWithValue("@west", west);
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            var reports = new List<IceReport>();
+            while (await reader.ReadAsync())
+            {
+                // Parse location and ice quality from Notes if present
+                var notes = reader["Notes"] as string;
+                string? location = null;
+                List<string>? iceQuality = null;
+
+                if (!string.IsNullOrWhiteSpace(notes))
+                {
+                    if (notes.Contains("Location:"))
+                    {
+                        var locationMatch = System.Text.RegularExpressions.Regex.Match(notes, @"Location:\s*([^|]+)");
+                        if (locationMatch.Success)
+                        {
+                            location = locationMatch.Groups[1].Value.Trim();
+                        }
+                    }
+
+                    if (notes.Contains("Conditions:"))
+                    {
+                        var conditionsMatch = System.Text.RegularExpressions.Regex.Match(notes, @"Conditions:\s*([^|]+)");
+                        if (conditionsMatch.Success)
+                        {
+                            var conditions = conditionsMatch.Groups[1].Value.Trim();
+                            iceQuality = conditions.Split(',').Select(c => c.Trim()).ToList();
+                        }
+                    }
+                }
+
+                // Read CreatedAt and specify it's UTC
+                var createdAtUtc = DateTime.SpecifyKind(
+                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                    DateTimeKind.Utc
+                );
+
+                var report = new IceReport
+                {
+                    Id = reader["ReportId"].ToString(),
+                    LakeName = reader["LakeName"] as string,
+                    Thickness = Convert.ToDouble(reader["IceThicknessIn"]),
+                    Location = location,
+                    Latitude = Convert.ToDouble(reader["Latitude"]),
+                    Longitude = Convert.ToDouble(reader["Longitude"]),
+                    SurfaceType = (reader["SurfaceType"] as string)?.ToLower() ?? "clear",
+                    IsMeasured = (reader["MeasurementType"] as string) == "Measured",
+                    CreatedAt = createdAtUtc,
+                    IceQuality = iceQuality
+                };
+
+                reports.Add(report);
+            }
+
+            _logger.LogInformation($"Retrieved {reports.Count} reports within bounds");
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(reports);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bounded reports");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync("An error occurred while retrieving reports");
             return errorResponse;

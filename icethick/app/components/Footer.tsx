@@ -118,10 +118,24 @@ export default function Footer() {
           opacity: 0.85
         }}>
           <p style={{ marginBottom: '0.5rem' }}>
-            © {new Date().getFullYear()} Ice Relay. All rights reserved.
+            © {new Date().getFullYear()} Ice Relay. All rights reserved. All information subject to change.
           </p>
           <p>
             Created by{' '}
+            <a 
+              href="https://AustinStephens.me" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                color: 'white',
+                fontWeight: 600,
+                textDecoration: 'none',
+                borderBottom: '1px solid white'
+              }}
+            >
+              Austin Stephens
+            </a>
+            {' | '}
             <a 
               href="https://github.com/Austtiin" 
               target="_blank" 
@@ -133,7 +147,7 @@ export default function Footer() {
                 borderBottom: '1px solid white'
               }}
             >
-              Austtiin
+              GitHub
             </a>
           </p>
         </div>

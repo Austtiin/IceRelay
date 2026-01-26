@@ -16,31 +16,35 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
     <header style={{ 
       background: 'white',
       borderBottom: '1px solid #e9ecef',
-      padding: '0.25rem 0',
+      padding: '0',
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+      height: '110px'
     }}>
       <div className="container" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
-        alignItems: 'center'
+        alignItems: 'center',
+        padding: '0 1rem',
+        height: '100%'
       }}>
         {/* Logo & Brand */}
-        <Link href="/" style={{ textDecoration: 'none' }}>
+        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', height: '100%' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '1rem',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            height: '100%'
           }}>
             <Image
               src="/IceRelay.png"
               alt="Ice Relay"
-              width={160}
-              height={45}
-              style={{ height: 'auto' }}
+              width={140}
+              height={39}
+              style={{ height: 'auto', width: 'auto', maxHeight: '95px', maxWidth: '350px', objectFit: 'contain' }}
               priority
             />
           </div>
@@ -54,7 +58,7 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
         }}
         className="desktop-nav">
           <Link href="/" style={{
-            padding: '0.5rem 1rem',
+            padding: '0.25rem 0.75rem',
             color: 'var(--foreground)',
             textDecoration: 'none',
             fontWeight: 500,
@@ -67,7 +71,7 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             Overview
           </Link>
           <Link href="/near-me" style={{
-            padding: '0.5rem 1rem',
+            padding: '0.25rem 0.75rem',
             color: 'var(--foreground)',
             textDecoration: 'none',
             fontWeight: 500,
@@ -82,26 +86,31 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
           <button
             onClick={onNewReport}
             style={{
-              background: 'var(--primary-dark)',
-              color: 'white',
-              border: 'none',
+              background: 'white',
+              color: 'var(--primary-dark)',
+              border: '2px solid var(--primary-dark)',
               borderRadius: '0.5rem',
-              padding: '0.5rem 1.25rem',
+              padding: '0.25rem 0.875rem',
               cursor: 'pointer',
               fontSize: '0.9375rem',
               fontWeight: 600,
               transition: 'all 0.2s',
-              marginLeft: '0.5rem'
+              marginLeft: '0.5rem',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--primary-medium)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.background = 'var(--primary-dark)';
+              e.currentTarget.style.color = 'white';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--primary-dark)';
+              e.currentTarget.style.background = 'white';
+              e.currentTarget.style.color = 'var(--primary-dark)';
               e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
             }}>
-            ➕ New Report
+            📝 New Report
           </button>
         </nav>
 

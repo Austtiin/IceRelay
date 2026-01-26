@@ -206,4 +206,38 @@ export const api = {
       return [];
     }
   },
+
+  // Get reports within map bounds
+  async getReportsInBounds(bbox: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+    zoom: number;
+  }): Promise<IceReport[]> {
+    console.log('[API] GET /reports/bounds - Bbox:', bbox);
+    try {
+      const params = new URLSearchParams({
+        north: bbox.north.toString(),
+        south: bbox.south.toString(),
+        east: bbox.east.toString(),
+        west: bbox.west.toString(),
+        zoom: bbox.zoom.toString()
+      });
+      
+      const response = await fetchWithRetry(`${API_BASE_URL}/reports/bounds?${params}`);
+      
+      if (!response.ok) {
+        console.error('[API] GET /reports/bounds - Failed:', response.status);
+        return [];
+      }
+      
+      const data = await response.json();
+      console.log('[API] GET /reports/bounds - Results:', data.length);
+      return data;
+    } catch (error) {
+      console.error('[API] GET /reports/bounds - Error:', error);
+      return [];
+    }
+  },
 };

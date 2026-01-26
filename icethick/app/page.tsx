@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import CircularProgress from '@mui/material/CircularProgress';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -39,9 +42,17 @@ interface Report {
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
+  const [showLakeConfirmation, setShowLakeConfirmation] = useState(false);
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
+  
+  // Lake search state
+  const [lakeSearch, setLakeSearch] = useState('');
+  const [lakeSuggestions, setLakeSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Fetch reports on component mount
   useEffect(() => {
@@ -54,23 +65,39 @@ export default function Home() {
       const { api } = await import('../lib/api');
       const fetchedReports = await api.getReports();
       
+      console.log('[FetchReports] Raw API response:', fetchedReports);
+      console.log('[FetchReports] Total reports fetched:', fetchedReports.length);
+      
       // Transform API reports to display format
       // Backend returns PascalCase, so we need to handle both cases
-      const displayReports = fetchedReports.map((report) => ({
-        id: report.Id || report.id || Math.random().toString(),
-        lakeName: report.LakeName || report.lakeName || 'Unknown location',
-        thickness: report.Thickness || report.thickness,
-        timeAgo: getTimeAgo(report.CreatedAt || report.createdAt),
-        location: report.Location || report.location,
-        quality: report.IceQuality || report.iceQuality || [],
-        reportCount: 1, // This would need aggregation in the API
-        surfaceType: formatSurfaceType(report.SurfaceType || report.surfaceType),
-        isMeasured: report.IsMeasured !== undefined ? report.IsMeasured : report.isMeasured
-      }));
+      const displayReports = fetchedReports.map((report) => {
+        const createdAt = report.CreatedAt || report.createdAt;
+        return {
+          id: report.Id || report.id || Math.random().toString(),
+          lakeName: report.LakeName || report.lakeName || 'Unknown location',
+          thickness: report.Thickness || report.thickness,
+          timeAgo: getTimeAgo(createdAt),
+          createdAt: createdAt,
+          location: report.Location || report.location,
+          quality: report.IceQuality || report.iceQuality || [],
+          reportCount: 1, // This would need aggregation in the API
+          surfaceType: formatSurfaceType(report.SurfaceType || report.surfaceType),
+          isMeasured: report.IsMeasured !== undefined ? report.IsMeasured : report.isMeasured
+        };
+      });
+      
+      console.log('[FetchReports] After mapping:', displayReports);
+      
+      // Explicitly sort by CreatedAt descending (newest first)
+      displayReports.sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA; // Newest first (descending)
+      });
       
       setReports(displayReports);
     } catch (error) {
-      console.error('Error fetching reports:', error);
+      console.error('[FetchReports] Error fetching reports:', error);
       setNotification({
         message: 'Failed to load reports. Please try again.',
         type: 'error'
@@ -80,6 +107,65 @@ export default function Home() {
       setIsLoadingReports(false);
     }
   };
+
+  const handleNewReportClick = () => {
+    setShowLakeConfirmation(true);
+  };
+
+  const handleLakeConfirmYes = () => {
+    setShowLakeConfirmation(false);
+    setIsSubmitFormOpen(true);
+  };
+
+  const handleLakeConfirmNo = () => {
+    setShowLakeConfirmation(false);
+    setNotification({
+      message: 'You must be on the lake to submit an accurate report. Please visit the lake and try again.',
+      type: 'warning'
+    });
+  };
+
+  // Lake search handler
+  const handleLakeSearchChange = async (value: string) => {
+    setLakeSearch(value);
+    
+    if (value.trim().length < 2) {
+      setLakeSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { api } = await import('../lib/api');
+      const results = await api.searchLakes(value);
+      setLakeSuggestions(results.slice(0, 10));
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Error searching lakes:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleLakeSelect = (lake: any) => {
+    setLakeSearch(lake.LakeName || lake.lakeName);
+    setShowSuggestions(false);
+    // Navigate to map view with this lake selected
+    window.location.href = `/map?lake=${encodeURIComponent(lake.LakeName || lake.lakeName)}&lat=${lake.Latitude || lake.latitude}&lng=${lake.Longitude || lake.longitude}`;
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const getTimeAgo = (createdAt?: string | Date): string => {
     if (!createdAt) return 'Just now';
@@ -93,25 +179,24 @@ export default function Home() {
       return 'Just now';
     }
     
+    // Calculate time difference (positive = past, negative = future)
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
+    const diffMins = diffMs / 60000;
+    const diffHours = diffMins / 60;
+    const diffDays = diffHours / 24;
     
-    // Debug logging
-    console.log('Date comparison:', { 
-      createdAt, 
-      parsed: date.toISOString(), 
-      now: now.toISOString(), 
-      diffMs, 
-      diffMins, 
-      diffHours 
-    });
+    // Handle future dates (shouldn't happen but log if it does)
+    if (diffMs < 0) {
+      console.warn('Report date is in the future:', createdAt);
+      return 'Just now';
+    }
     
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    // If less than 1 hour, show "Just now"
+    if (diffHours < 1) return 'Just now';
+    const hours = Math.floor(diffHours);
+    const days = Math.floor(diffDays);
+    if (diffHours < 24) return `Posted ${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    return `Posted ${days} day${days !== 1 ? 's' : ''} ago`;
   };
 
   const formatSurfaceType = (type?: string): string => {
@@ -129,32 +214,78 @@ export default function Home() {
 
   const handleSubmitReport = async (data: ReportData) => {
     try {
+      // Validate data before sending
+      if (!data.lake || data.lake.trim().length === 0) {
+        setNotification({
+          message: 'Lake name is required. Please go back and enter a lake name.',
+          type: 'error'
+        });
+        return;
+      }
+
+      if (data.thickness <= 0 || data.thickness > 50) {
+        setNotification({
+          message: 'Ice thickness must be between 0 and 50 inches.',
+          type: 'error'
+        });
+        return;
+      }
+
+      if (data.latitude === 0 || data.longitude === 0) {
+        setNotification({
+          message: 'Location is required. Please enable GPS and try again.',
+          type: 'error'
+        });
+        return;
+      }
+
       // Import the api client dynamically
       const { api } = await import('../lib/api');
+      
+      console.log('[Submit] Sending report:', data);
       
       // Create report via API (will retry 3 times automatically)
       await api.createReport(data);
       
-      setIsSubmitFormOpen(false);
+      console.log('[Submit] Report created successfully');
       
       // Track report submission in analytics
       trackReportSubmission(data.lake || 'Unknown', data.thickness);
       
-      // Success notification
+      // Success notification - set BEFORE closing form
       setNotification({
         message: 'Success! Your ice report has been submitted and will help keep the community safe. Thank you!',
         type: 'success'
       });
+      
+      // Close form after a brief delay to ensure notification is set
+      setTimeout(() => {
+        setIsSubmitFormOpen(false);
+      }, 100);
 
       // Refresh the reports list to show the new report
+      console.log('[Submit] Refreshing reports list');
       await fetchReports();
     } catch (error) {
-      console.error('Failed to submit report:', error);
+      console.error('[Submit] Failed to submit report:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Parse error message for user-friendly display
+      let userMessage = 'Failed to submit report. Please try again.';
+      
+      if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
+        userMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (errorMessage.includes('timeout')) {
+        userMessage = 'Request timed out. Please check your connection and try again.';
+      } else if (errorMessage.includes('Database')) {
+        userMessage = 'Server error. Please try again in a few moments.';
+      } else if (errorMessage.includes('validation') || errorMessage.includes('invalid')) {
+        userMessage = `Invalid data: ${errorMessage}. Please check your inputs.`;
+      }
       
       // Failed notification
       setNotification({
-        message: `Failed to submit report after 3 attempts. ${errorMessage}. Please check your connection and try again.`,
+        message: userMessage,
         type: 'error'
       });
     }
@@ -260,7 +391,7 @@ export default function Home() {
                 variant="outlined"
                 size="large"
                 startIcon={<EditNoteIcon />}
-                onClick={() => setIsSubmitFormOpen(true)}
+                onClick={handleNewReportClick}
                 sx={{
                   borderColor: 'white',
                   color: 'white',
@@ -280,11 +411,23 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Wave Transition */}
+        <div style={{
+          position: 'relative',
+          marginTop: '-80px',
+          marginBottom: '-40px',
+          zIndex: 5
+        }}>
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style={{ width: '100%', height: '120px', display: 'block' }}>
+            <path d="M0,60 C300,100 600,20 900,60 C1050,80 1150,40 1200,60 L1200,120 L0,120 Z" 
+                  fill="#fafbfc" />
+          </svg>
+        </div>
+
         {/* Recent Reports */}
         <section style={{ 
-          padding: '4rem 0',
-          background: '#fafbfc',
-          borderTop: '3px solid var(--primary-light)'
+          padding: '4rem 0 5rem',
+          background: '#fafbfc'
         }}>
           <div className="container" style={{ maxWidth: '1200px' }}>
             <div style={{
@@ -301,9 +444,114 @@ export default function Home() {
               </h2>
               <p style={{ 
                 color: 'var(--text-secondary)',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                marginBottom: '1.5rem'
               }}>
                 Latest ice thickness data from the community
+              </p>
+              
+              {/* Lake Search */}
+              <div ref={searchRef} style={{ maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
+                <TextField
+                  fullWidth
+                  placeholder="Search for a specific lake..."
+                  value={lakeSearch}
+                  onChange={(e) => handleLakeSearchChange(e.target.value)}
+                  onFocus={() => lakeSuggestions.length > 0 && setShowSuggestions(true)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: 'var(--text-secondary)' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': {
+                        borderColor: 'var(--border-color)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'var(--primary-main)',
+                      },
+                    }
+                  }}
+                />
+                
+                {/* Search Suggestions Dropdown */}
+                {showSuggestions && lakeSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    backgroundColor: 'white',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    maxHeight: '300px',
+                    overflowY: 'auto',
+                    zIndex: 1000,
+                    marginTop: '4px'
+                  }}>
+                    {lakeSuggestions.map((lake, index) => {
+                      const lakeName = lake.LakeName || lake.lakeName;
+                      const reportCount = lake.ReportCount || lake.reportCount || 0;
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleLakeSelect(lake)}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            border: 'none',
+                            backgroundColor: 'white',
+                            cursor: 'pointer',
+                            borderBottom: index < lakeSuggestions.length - 1 ? '1px solid var(--border-color)' : 'none',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                        >
+                          <div style={{ fontWeight: 500, color: 'var(--primary-dark)' }}>
+                            {lakeName}
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {reportCount} report{reportCount !== 1 ? 's' : ''}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Can't find lake message */}
+              <p style={{ 
+                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+                marginTop: '1rem'
+              }}>
+                Can't see what you're looking for?{' '}
+                <Button
+                  size="small"
+                  onClick={handleNewReportClick}
+                  sx={{
+                    textTransform: 'none',
+                    padding: '0',
+                    minWidth: 'auto',
+                    fontWeight: 600,
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      textDecoration: 'underline'
+                    }
+                  }}
+                >
+                  Consider adding the lake/report you're measuring ice thickness
+                </Button>
               </p>
             </div>
 
@@ -345,7 +593,7 @@ export default function Home() {
                 <Button
                   variant="contained"
                   startIcon={<EditNoteIcon />}
-                  onClick={() => setIsSubmitFormOpen(true)}
+                  onClick={handleNewReportClick}
                 >
                   Submit First Report
                 </Button>
@@ -413,7 +661,7 @@ export default function Home() {
               color: 'var(--primary-dark)',
               textAlign: 'center'
             }}>
-              ❄️ 5-Tier Ice Safety Scale
+              ❄️ Minnesota Ice Safety Guidelines
             </h2>
             <p style={{
               textAlign: 'center',
@@ -421,56 +669,72 @@ export default function Home() {
               marginBottom: '2rem',
               fontSize: '0.95rem'
             }}>
-              General guidelines - always check conditions yourself before venturing out
+              Official Minnesota recommendations - always check conditions yourself before venturing out
             </p>
 
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
               gap: '1.5rem',
-              maxWidth: '1000px',
+              maxWidth: '1200px',
               margin: '0 auto'
             }}>
               {[
                 {
                   icon: '🔴',
-                  tier: 'Tier 1',
-                  thickness: '0-3 inches',
-                  activity: 'STAY OFF',
+                  tier: 'Danger',
+                  thickness: '< 4"',
+                  activity: 'KEEP OFF',
                   color: '#FE5F55',
-                  desc: 'Dangerous. Not safe for any activity.'
+                  desc: 'Ice is too thin. Stay off completely.'
                 },
                 {
                   icon: '🟠',
-                  tier: 'Tier 2',
-                  thickness: '4-6 inches',
-                  activity: 'Foot Traffic',
+                  tier: 'Foot Traffic',
+                  thickness: '4"',
+                  activity: 'On Foot / Portables',
                   color: '#FF8C42',
-                  desc: 'Walking only. Test carefully.'
+                  desc: 'Walking and ice fishing with portables only.'
                 },
                 {
                   icon: '🟡',
-                  tier: 'Tier 3',
-                  thickness: '7-9 inches',
+                  tier: 'Snowmobile',
+                  thickness: '5-7"',
                   activity: 'Snowmobile',
                   color: '#F7A93D',
-                  desc: 'Light vehicles and snowmobiles.'
+                  desc: 'Snowmobiles and light recreation.'
                 },
                 {
                   icon: '🟢',
-                  tier: 'Tier 4',
-                  thickness: '10-12 inches',
+                  tier: 'ATV/Side-by-Side',
+                  thickness: '7-8"',
                   activity: 'ATV / UTV',
-                  color: '#577399',
-                  desc: 'ATVs and small groups.'
+                  color: '#2ECC71',
+                  desc: 'ATVs and side-by-side vehicles.'
                 },
                 {
                   icon: '🔵',
-                  tier: 'Tier 5',
-                  thickness: '12+ inches',
-                  activity: 'Light Truck',
+                  tier: 'Car/Skid House',
+                  thickness: '9-12"',
+                  activity: 'Car / Small Vehicle',
+                  color: '#577399',
+                  desc: 'Cars and small ice houses.'
+                },
+                {
+                  icon: '🟣',
+                  tier: 'Truck',
+                  thickness: '13-17"',
+                  activity: 'Pickup Truck',
                   color: '#4A90E2',
-                  desc: 'Trucks (proceed with extreme caution).'
+                  desc: 'Pickup trucks and medium vehicles.'
+                },
+                {
+                  icon: '⚫',
+                  tier: 'Heavy Duty',
+                  thickness: '20+"',
+                  activity: 'Heavy Truck + House',
+                  color: '#2C3E50',
+                  desc: 'Heavy duty trucks with large ice houses.'
                 }
               ].map((tier, index) => (
                 <div key={index} style={{
@@ -522,6 +786,78 @@ export default function Home() {
       </main>
 
       <Footer />
+
+      {/* Lake Confirmation Dialog */}
+      {showLakeConfirmation && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={() => setShowLakeConfirmation(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                color: 'var(--primary-dark)',
+                marginBottom: '1rem',
+                textAlign: 'center'
+              }}
+            >
+              Are you currently on the lake?
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'var(--text-secondary)',
+                marginBottom: '2rem',
+                textAlign: 'center'
+              }}
+            >
+              To ensure accurate ice thickness reports, you must be physically present on the lake where you're measuring. This helps maintain the reliability of our data for the community.
+            </Typography>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={handleLakeConfirmNo}
+                sx={{ minWidth: '120px' }}
+              >
+                No
+              </Button>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleLakeConfirmYes}
+                sx={{ minWidth: '120px' }}
+              >
+                Yes, I'm on the lake
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isSubmitFormOpen && (
         <SubmitReportForm

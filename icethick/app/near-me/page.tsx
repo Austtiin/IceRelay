@@ -33,7 +33,7 @@ export default function NearMePage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header 
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
+        onNewReport={() => setIsSubmitFormOpen(true)}
       />
       <Navigation 
         isOpen={isMenuOpen} 
@@ -44,12 +44,27 @@ export default function NearMePage() {
       <main style={{ flex: 1, background: '#fafbfc' }}>
         {/* Hero Section */}
         <section style={{
-          background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%)',
+          position: 'relative',
+          backgroundImage: 'url(/HomeHero.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
           padding: '3rem 0',
           color: 'white',
-          textAlign: 'center'
+          textAlign: 'center',
+          overflow: 'hidden'
         }}>
-          <div className="container">
+          {/* Dark overlay for better text readability */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, rgba(73, 88, 103, 0.85) 0%, rgba(87, 115, 153, 0.75) 100%)',
+            zIndex: 1
+          }} />
+          <div className="container" style={{ position: 'relative', zIndex: 2 }}>
             <h1 style={{
               fontSize: '2rem',
               fontWeight: 700,
@@ -68,15 +83,28 @@ export default function NearMePage() {
           </div>
         </section>
 
+        {/* Wave Transition */}
+        <div style={{
+          position: 'relative',
+          marginTop: '-80px',
+          marginBottom: '-40px',
+          zIndex: 5
+        }}>
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style={{ width: '100%', height: '120px', display: 'block' }}>
+            <path d="M0,60 C300,100 600,20 900,60 C1050,80 1150,40 1200,60 L1200,120 L0,120 Z" 
+                  fill="#fafbfc" />
+          </svg>
+        </div>
+
         {/* Lake Selection */}
-        <section style={{ padding: '3rem 0 1.5rem 0' }}>
+        <section style={{ padding: '2rem 0 1rem 0' }}>
           <div className="container" style={{ maxWidth: '800px' }}>
             <div style={{
               background: 'white',
-              padding: '2rem',
+              padding: '1.5rem',
               borderRadius: '1rem',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              marginBottom: '2rem'
+              marginBottom: '1.5rem'
             }}>
               <h2 style={{
                 fontSize: '1.25rem',
@@ -89,14 +117,14 @@ export default function NearMePage() {
               </h2>
               <div style={{
                 display: 'flex',
-                gap: '1rem',
-                alignItems: 'center'
+                flexDirection: 'column',
+                gap: '1rem'
               }}>
                 <select
                   value={selectedLake}
                   onChange={(e) => setSelectedLake(e.target.value)}
                   style={{
-                    flex: 1,
+                    width: '100%',
                     padding: '0.875rem',
                     borderRadius: '0.5rem',
                     border: '2px solid var(--primary-light)',
@@ -121,6 +149,7 @@ export default function NearMePage() {
                   }}
                   disabled={!selectedLake}
                   style={{
+                    width: '100%',
                     background: selectedLake ? 'var(--primary-dark)' : '#ccc',
                     color: 'white',
                     border: 'none',
@@ -129,8 +158,7 @@ export default function NearMePage() {
                     fontSize: '1rem',
                     fontWeight: 600,
                     cursor: selectedLake ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap'
+                    transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
                     if (selectedLake) {
@@ -169,28 +197,29 @@ export default function NearMePage() {
         </section>
 
         {/* Location Request */}
-        <section style={{ padding: '0 0 3rem 0' }}>
+        <section style={{ padding: '0 0 2rem 0' }}>
           <div className="container" style={{ maxWidth: '800px' }}>
             <div style={{
               background: 'white',
-              padding: '3rem 2rem',
+              padding: '2rem 1.5rem',
               borderRadius: '1rem',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               textAlign: 'center'
             }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>📍</div>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📍</div>
               <h2 style={{
-                fontSize: '1.5rem',
+                fontSize: '1.25rem',
                 fontWeight: 700,
                 color: 'var(--primary-dark)',
-                marginBottom: '1rem'
+                marginBottom: '0.75rem'
               }}>
                 Enable Location Access
               </h2>
               <p style={{
                 color: 'var(--text-secondary)',
-                marginBottom: '2rem',
-                lineHeight: '1.6'
+                marginBottom: '1.5rem',
+                lineHeight: '1.6',
+                fontSize: '0.9rem'
               }}>
                 To show ice thickness reports near you, we need access to your location. 
                 Your location is only used to find nearby reports and is never stored or shared.
@@ -232,45 +261,6 @@ export default function NearMePage() {
                 }}>
                 Enable Location
               </button>
-
-              <div style={{
-                marginTop: '2rem',
-                padding: '1rem',
-                background: '#f8f9fa',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                color: 'var(--text-secondary)'
-              }}>
-                <strong>Coming Soon:</strong> Interactive map view, distance-based filtering, 
-                and real-time API integration
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Placeholder for Future Map */}
-        <section style={{ padding: '0 0 3rem 0' }}>
-          <div className="container" style={{ maxWidth: '1200px' }}>
-            <div style={{
-              background: 'white',
-              padding: '3rem 2rem',
-              borderRadius: '1rem',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              textAlign: 'center',
-              border: '2px dashed #e9ecef'
-            }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
-              <h3 style={{
-                fontSize: '1.25rem',
-                fontWeight: 600,
-                color: 'var(--primary-dark)',
-                marginBottom: '0.5rem'
-              }}>
-                Interactive Map Coming Soon
-              </h3>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                View all reports on an interactive map with heatmap visualization
-              </p>
             </div>
           </div>
         </section>

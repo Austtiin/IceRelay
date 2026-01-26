@@ -21,47 +21,63 @@ export default function ReportCard({
   surfaceType,
   isMeasured = true
 }: ReportCardProps) {
-  // 5-tier safety scale
+  // Minnesota ice safety recommendations
   const getSafetyInfo = (inches: number) => {
     if (inches < 4) {
       return {
-        status: 'No foot traffic',
+        status: 'Keep off',
         icon: '🔴',
         className: 'badge-danger',
         color: '#FE5F55',
-        activity: 'STAY OFF'
+        activity: 'KEEP OFF'
       };
-    } else if (inches < 7) {
+    } else if (inches === 4) {
       return {
-        status: 'Foot only',
+        status: 'On foot / Portables',
         icon: '🟠',
         className: 'badge-warning',
         color: '#FF8C42',
-        activity: 'Walking only'
+        activity: 'On Foot / Portables'
       };
-    } else if (inches < 10) {
+    } else if (inches >= 5 && inches < 7) {
       return {
         status: 'Snowmobile',
         icon: '🟡',
         className: 'badge-caution',
         color: '#F7A93D',
-        activity: 'Light vehicles'
+        activity: 'Snowmobile'
       };
-    } else if (inches < 12) {
+    } else if (inches >= 7 && inches < 9) {
       return {
-        status: 'ATV safe',
+        status: 'ATV / Side-by-Side',
         icon: '🟢',
         className: 'badge-safe',
+        color: '#2ECC71',
+        activity: 'ATV / Side-by-Side'
+      };
+    } else if (inches >= 9 && inches < 13) {
+      return {
+        status: 'Car / Skid House',
+        icon: '🔵',
+        className: 'badge-truck',
         color: '#577399',
-        activity: 'ATVs OK'
+        activity: 'Car / Skid House'
+      };
+    } else if (inches >= 13 && inches < 20) {
+      return {
+        status: 'Pickup Truck',
+        icon: '🟣',
+        className: 'badge-heavy',
+        color: '#4A90E2',
+        activity: 'Pickup Truck'
       };
     } else {
       return {
-        status: 'Truck (risky)',
-        icon: '🔵',
-        className: 'badge-truck',
-        color: '#4A90E2',
-        activity: 'Heavy vehicles'
+        status: 'Heavy Truck + Ice House',
+        icon: '⚫',
+        className: 'badge-extreme',
+        color: '#2C3E50',
+        activity: 'Heavy Truck + Ice House'
       };
     }
   };
@@ -91,7 +107,56 @@ export default function ReportCard({
   const ageWarning = getAgeWarning(timeAgo);
 
   return (
-    <div className={`card ${ageWarning.cssClass}`} style={{ marginBottom: '1rem', position: 'relative' }}>
+    <div className={`card ${ageWarning.cssClass}`} style={{ 
+      marginBottom: '1rem', 
+      position: 'relative',
+      background: 'linear-gradient(135deg, #fef9e7 0%, #fff9c4 100%)',
+      border: '1px solid #f4e5b8',
+      borderRadius: '2px',
+      boxShadow: '3px 3px 10px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15)',
+      transform: 'rotate(-0.5deg)',
+      transition: 'all 0.3s ease',
+      cursor: 'default',
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '280px'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'rotate(0deg) translateY(-4px)';
+      e.currentTarget.style.boxShadow = '5px 5px 15px rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.2)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'rotate(-0.5deg) translateY(0)';
+      e.currentTarget.style.boxShadow = '3px 3px 10px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15)';
+    }}>
+      {/* Realistic Pushpin effect at top */}
+      {/* Pin head (rounded top part) */}
+      <div style={{
+        position: 'absolute',
+        top: '-2px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '18px',
+        height: '18px',
+        borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
+        background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 50%, #a93226 100%)',
+        boxShadow: '0 3px 6px rgba(0, 0, 0, 0.4), inset -2px -2px 3px rgba(0, 0, 0, 0.3), inset 1px 1px 2px rgba(255, 255, 255, 0.3)',
+        zIndex: 11,
+        border: '1px solid rgba(139, 0, 0, 0.3)'
+      }} />
+      {/* Pin needle (metallic point) */}
+      <div style={{
+        position: 'absolute',
+        top: '14px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '3px',
+        height: '12px',
+        background: 'linear-gradient(to right, #bdc3c7 0%, #95a5a6 50%, #7f8c8d 100%)',
+        boxShadow: '1px 0 2px rgba(0, 0, 0, 0.4), -1px 0 1px rgba(255, 255, 255, 0.2)',
+        clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+        zIndex: 10
+      }} />
       {/* Trust Score Badge */}
       <div style={{
         position: 'absolute',
@@ -223,7 +288,8 @@ export default function ReportCard({
         borderRadius: '0.5rem',
         fontSize: '0.875rem',
         color: 'var(--foreground)',
-        borderLeft: `4px solid ${safety.color}`
+        borderLeft: `4px solid ${safety.color}`,
+        marginTop: 'auto'
       }}>
         <strong>{safety.activity}</strong> - {safety.status}
       </div>

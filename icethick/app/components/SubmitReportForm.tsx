@@ -24,11 +24,17 @@ export interface ReportData {
 
 interface LakeSuggestion {
   lakeName?: string;
+  LakeName?: string;  // API returns PascalCase
   latitude: number;
+  Latitude?: number;  // API returns PascalCase
   longitude: number;
+  Longitude?: number;  // API returns PascalCase
   reportCount: number;
+  ReportCount?: number;  // API returns PascalCase
   distanceKm?: number;
+  DistanceKm?: number;  // API returns PascalCase
   lastReportDate?: string;
+  LastReportDate?: string;  // API returns PascalCase
 }
 
 // Text sanitization utility
@@ -215,7 +221,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
       (error) => {
         let errorMessage = 'Unable to get your location';
         if (error.code === error.PERMISSION_DENIED) {
-          errorMessage = 'Location permission denied. Please enable location access in your browser.';
+          errorMessage = 'Location access was denied. Please go into your browser settings and enable location access. We require location data to prevent spam and ensure reports are from actual lake locations.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
           errorMessage = 'Location information unavailable';
         } else if (error.code === error.TIMEOUT) {
@@ -245,6 +251,20 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
     if (formData.latitude === 0 || formData.longitude === 0) {
       setLocationError('Please use your location before submitting');
       setLocationStatus('error');
+      setCurrentStep(1); // Go back to location step
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.lake || formData.lake.trim().length === 0) {
+      alert('Please enter a lake name');
+      setCurrentStep(2);
+      return;
+    }
+
+    if (formData.thickness <= 0 || formData.thickness > 50) {
+      alert('Please enter a valid ice thickness between 0 and 50 inches');
+      setCurrentStep(3);
       return;
     }
 
@@ -260,8 +280,10 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
       await onSubmit(normalizedData);
       // Note: Form will be closed by parent on success
     } catch (error) {
-      // Error handling is done in parent
-      console.error('Form submission error:', error);
+      // Error handling is done in parent, but log here for debugging
+      console.error('[Submit] Form submission error:', error);
+      // Show user-friendly error
+      alert('Failed to submit report. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -296,6 +318,8 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
           const { api } = await import('../../lib/api');
           const suggestions = await api.searchLakes(value);
           
+          console.log('Lake search results for "' + value + '":', suggestions);
+          
           // Ensure loading shows for at least 300ms to prevent flicker
           const elapsedTime = Date.now() - searchStartTime;
           const minDisplayTime = 300;
@@ -306,6 +330,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
           
           setLakeSuggestions(suggestions);
           setShowLakeSuggestions(suggestions.length > 0);
+          console.log('Showing suggestions:', suggestions.length > 0, 'Count:', suggestions.length);
         } catch (error) {
           console.error('Error searching lakes:', error);
         } finally {
@@ -322,7 +347,9 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
   };
 
   const selectLakeSuggestion = (suggestion: LakeSuggestion) => {
-    setFormData(prev => ({ ...prev, lake: suggestion.lakeName || '' }));
+    const lakeName = suggestion.LakeName || suggestion.lakeName || '';
+    console.log('Selected lake:', lakeName, 'from suggestion:', suggestion);
+    setFormData(prev => ({ ...prev, lake: lakeName }));
     setShowLakeSuggestions(false);
     setDetectedLake(suggestion);
   };
@@ -352,7 +379,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
       case 2: // Lake step
         return formData.lake.trim().length > 0;
       case 3: // Ice details
-        return formData.thickness > 0 && formData.surfaceType.length > 0;
+        return formData.thickness > 0 && formData.surfaceType.length > 0 && formData.isMeasured;
       case 4: // Additional info (optional, always can proceed)
         return true;
       default:
@@ -815,70 +842,76 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                   Lake Name <span style={{ color: 'var(--danger)' }}>*</span>
                   {lakeConfirmed === true && <span style={{ fontSize: '0.85rem', fontWeight: 400, color: '#28a745', marginLeft: '0.5rem' }}>(based on GPS data)</span>}
                 </label>
-                <input
-                  type="text"
-                  value={formData.lake}
-                  onChange={(e) => handleLakeNameChange(e.target.value)}
-                  onFocus={() => setShowLakeSuggestions(lakeSuggestions.length > 0)}
-                  onBlur={() => setTimeout(() => setShowLakeSuggestions(false), 200)}
-                  placeholder="Start typing to search for a lake..."
-                  autoComplete="off"
-                  readOnly={lakeConfirmed === true}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    borderRadius: '0.5rem',
-                    border: '2px solid var(--primary-light)',
-                    fontSize: '0.95rem',
-                    background: lakeConfirmed === true ? '#e9ecef' : 'white',
-                    cursor: lakeConfirmed === true ? 'not-allowed' : 'text'
-                  }}
-                />
-                
-                {/* Lake name autocomplete suggestions */}
-                {showLakeSuggestions && lakeSuggestions.length > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% - 2.5rem)',
-                    left: 0,
-                    right: 0,
-                    background: 'white',
-                    border: '2px solid var(--primary-light)',
-                    borderRadius: '0.5rem',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    zIndex: 10
-                  }}>
-                    {lakeSuggestions.map((suggestion, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => selectLakeSuggestion(suggestion)}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: 'none',
-                          borderBottom: idx < lakeSuggestions.length - 1 ? '1px solid var(--primary-light)' : 'none',
-                          background: 'white',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          transition: 'background 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--primary-light)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                      >
-                        <div style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
-                          {suggestion.lakeName}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                          {suggestion.reportCount} report{suggestion.reportCount !== 1 ? 's' : ''}
-                          {suggestion.lastReportDate && ` • Last: ${new Date(suggestion.lastReportDate).toLocaleDateString()}`}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={formData.lake}
+                    onChange={(e) => handleLakeNameChange(e.target.value)}
+                    onFocus={() => setShowLakeSuggestions(lakeSuggestions.length > 0)}
+                    onBlur={() => setTimeout(() => setShowLakeSuggestions(false), 300)}
+                    placeholder="Start typing to search for a lake..."
+                    autoComplete="off"
+                    readOnly={lakeConfirmed === true}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '0.5rem',
+                      border: '2px solid var(--primary-light)',
+                      fontSize: '0.95rem',
+                      background: lakeConfirmed === true ? '#e9ecef' : 'white',
+                      cursor: lakeConfirmed === true ? 'not-allowed' : 'text'
+                    }}
+                  />
+                  
+                  {/* Lake name autocomplete suggestions */}
+                  {showLakeSuggestions && lakeSuggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '2px solid var(--primary-light)',
+                      borderRadius: '0.5rem',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      marginTop: '0.25rem'
+                    }}>
+                      {lakeSuggestions.slice(0, 10).map((suggestion, idx) => {
+                        const lakeName = suggestion.LakeName || suggestion.lakeName || 'Unknown Lake';
+                        return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => selectLakeSuggestion(suggestion)}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            border: 'none',
+                            borderBottom: idx < lakeSuggestions.length - 1 ? '1px solid var(--primary-light)' : 'none',
+                            background: 'white',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--primary-light)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                        >
+                          <div style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
+                            {lakeName}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                            {suggestion.reportCount || suggestion.ReportCount || 0} report{(suggestion.reportCount || suggestion.ReportCount || 0) !== 1 ? 's' : ''}
+                            {(suggestion.lastReportDate || suggestion.LastReportDate) && ` • Last: ${new Date((suggestion.lastReportDate || suggestion.LastReportDate)!).toLocaleDateString()}`}
+                          </div>
+                        </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 
                 {isSearchingLakes && (
                   <div style={{
