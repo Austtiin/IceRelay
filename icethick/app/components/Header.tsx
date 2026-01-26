@@ -16,7 +16,7 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
     <header style={{ 
       background: 'white',
       borderBottom: '1px solid #e9ecef',
-      padding: '0.375rem 0',
+      padding: '0.25rem 0',
       position: 'sticky',
       top: 0,
       zIndex: 50,
@@ -38,8 +38,8 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             <Image
               src="/IceRelay.png"
               alt="Ice Relay"
-              width={120}
-              height={34}
+              width={160}
+              height={45}
               style={{ height: 'auto' }}
               priority
             />

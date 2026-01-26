@@ -280,37 +280,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Wave Divider Transition */}
-        <div style={{
-          position: 'relative',
-          height: '120px',
-          overflow: 'hidden',
-          background: 'linear-gradient(180deg, #577399 0%, #fafbfc 100%)'
-        }}>
-          <svg
-            viewBox="0 0 1440 120"
-            style={{
-              width: '100%',
-              height: '100%',
-              display: 'block'
-            }}
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0,60 C240,90 360,30 600,60 C840,90 960,30 1200,60 L1200,0 L0,0 Z"
-              fill="rgba(87, 115, 153, 0.95)"
-            />
-            <path
-              d="M0,80 C240,50 360,110 600,80 C840,50 960,110 1200,80 L1200,120 L0,120 Z"
-              fill="#fafbfc"
-            />
-          </svg>
-        </div>
-
         {/* Recent Reports */}
         <section style={{ 
           padding: '4rem 0',
-          background: '#fafbfc'
+          background: '#fafbfc',
+          borderTop: '3px solid var(--primary-light)'
         }}>
           <div className="container" style={{ maxWidth: '1200px' }}>
             <div style={{

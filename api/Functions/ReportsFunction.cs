@@ -26,10 +26,11 @@ public class ReportsFunction
 
         try
         {
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
+                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
             if (string.IsNullOrEmpty(connectionString))
             {
-                _logger.LogError("SqlConnectionString not configured");
+                _logger.LogError("Database connection string not configured");
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Database connection not configured");
                 return errorResponse;
@@ -165,10 +166,11 @@ public class ReportsFunction
         try
         {
             // Get connection string from environment
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
+                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
             if (string.IsNullOrEmpty(connectionString))
             {
-                _logger.LogError("SqlConnectionString not configured");
+                _logger.LogError("Database connection string not configured");
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Database connection not configured");
                 return errorResponse;
@@ -398,10 +400,11 @@ public class ReportsFunction
 
         try
         {
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
+                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
             if (string.IsNullOrEmpty(connectionString))
             {
-                _logger.LogError("SqlConnectionString not configured");
+                _logger.LogError("Database connection string not configured");
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Database connection not configured");
                 return errorResponse;
@@ -536,10 +539,11 @@ public class ReportsFunction
 
         try
         {
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
+                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
             if (string.IsNullOrEmpty(connectionString))
             {
-                _logger.LogError("SqlConnectionString not configured");
+                _logger.LogError("Database connection string not configured");
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Database connection not configured");
                 return errorResponse;
