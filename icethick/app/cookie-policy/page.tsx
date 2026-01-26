@@ -5,11 +5,18 @@ import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 
+const pageStyles = {
+  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column' as const },
+  main: { flex: 1, padding: '3rem 0', background: '#fafbfc' },
+  contentContainer: { maxWidth: '800px' }
+};
+
 export default function CookiePolicyPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
         onNewReport={() => {}}
@@ -20,8 +27,8 @@ export default function CookiePolicyPage() {
         onNewReport={() => {}}
       />
 
-      <main style={{ flex: 1, padding: '3rem 0', background: '#fafbfc' }}>
-        <div className="container" style={{ maxWidth: '800px' }}>
+      <main style={pageStyles.main}>
+        <div className="container" style={pageStyles.contentContainer}>
           <h1
             style={{
               fontSize: '2rem',
@@ -71,7 +78,7 @@ export default function CookiePolicyPage() {
 
           <section style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e0e4ea' }}>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              Last updated: {lastUpdated}
             </p>
           </section>
         </div>

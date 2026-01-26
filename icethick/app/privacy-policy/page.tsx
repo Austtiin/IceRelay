@@ -5,11 +5,18 @@ import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 
+const pageStyles = {
+  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column' as const },
+  main: { flex: 1, padding: '3rem 0', background: '#fafbfc' },
+  contentContainer: { maxWidth: '800px' }
+};
+
 export default function PrivacyPolicyPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
         onNewReport={() => {}}
@@ -20,8 +27,8 @@ export default function PrivacyPolicyPage() {
         onNewReport={() => {}}
       />
 
-      <main style={{ flex: 1, padding: '3rem 0', background: '#fafbfc' }}>
-        <div className="container" style={{ maxWidth: '800px' }}>
+      <main style={pageStyles.main}>
+        <div className="container" style={pageStyles.contentContainer}>
           <h1
             style={{
               fontSize: '2rem',
@@ -73,6 +80,29 @@ export default function PrivacyPolicyPage() {
 
           <section style={{ marginBottom: '2rem', lineHeight: 1.7 }}>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary-dark)' }}>
+              Public User-Submitted Reports
+            </h2>
+            <div style={{
+              background: 'rgba(254, 95, 85, 0.08)',
+              border: '1px solid var(--accent-danger)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '0.75rem'
+            }}>
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)', margin: 0 }}>
+                <strong>Important:</strong> All ice reports you submit are publicly visible and are not verified by Ice Relay.
+              </p>
+            </div>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+              When you submit an ice thickness report, the data (lake name, thickness, location, notes, etc.) becomes 
+              publicly visible to all users. Reports are associated with approximate GPS coordinates but not linked to 
+              your personal identity. We implement spam prevention and content moderation to filter inappropriate content, 
+              but cannot guarantee the accuracy of any user-submitted information.
+            </p>
+          </section>
+
+          <section style={{ marginBottom: '2rem', lineHeight: 1.7 }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary-dark)' }}>
               Cookies & Tracking
             </h2>
             <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
@@ -104,7 +134,7 @@ export default function PrivacyPolicyPage() {
 
           <section style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e0e4ea' }}>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              Last updated: {lastUpdated}
             </p>
           </section>
         </div>

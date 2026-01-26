@@ -38,42 +38,83 @@ interface LakeSuggestion {
 }
 
 // Text sanitization utility
-const sanitizeText = (text: string, fieldName: string = 'text'): string => {
-  if (!text) return text;
+const sanitizeText = (text: string, fieldName: string = 'text'): { isValid: boolean; cleanedText: string; error?: string } => {
+  if (!text) return { isValid: true, cleanedText: text };
   
   let cleaned = text;
   
-  // Remove special characters and excessive symbols (keep basic punctuation and spaces)
+  // Check for URLs
+  if (/https?:\/\/|www\./i.test(cleaned)) {
+    return { isValid: false, cleanedText: '', error: `${fieldName} cannot contain URLs` };
+  }
+  
+  // Check for email addresses
+  if (/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(cleaned)) {
+    return { isValid: false, cleanedText: '', error: `${fieldName} cannot contain email addresses` };
+  }
+  
+  // Check for repeated words (spam pattern)
+  if (/(\b\w+\b)(\s*\1){3,}/i.test(cleaned)) {
+    return { isValid: false, cleanedText: '', error: `${fieldName} contains spam-like content` };
+  }
+  
+  // Basic profanity filter
+  const profanityList = ['fuck', 'shit', 'damn', 'ass', 'bitch', 'crap', 'hell', 'bastard', 
+                          'asshole', 'dick', 'cock', 'pussy', 'cunt', 'whore', 'slut', 'fag',
+                          'nigger', 'nigga', 'retard', 'rape'];
+  
+  const words = cleaned.toLowerCase().split(/[\s,.!?]+/);
+  for (const word of words) {
+    if (profanityList.includes(word)) {
+      return { 
+        isValid: false, 
+        cleanedText: '', 
+        error: 'Please keep your report professional and family-friendly. Vulgar language is not allowed.' 
+      };
+    }
+  }
+  
+  // Check leetspeak variations
+  const normalized = cleaned
+    .replace(/@/g, 'a')
+    .replace(/3/g, 'e')
+    .replace(/1/g, 'i')
+    .replace(/0/g, 'o')
+    .replace(/\$/g, 's')
+    .toLowerCase();
+  
+  const normalizedWords = normalized.split(/[\s,.!?]+/);
+  for (const word of normalizedWords) {
+    if (profanityList.includes(word)) {
+      return { 
+        isValid: false, 
+        cleanedText: '', 
+        error: 'Please keep your report professional and family-friendly. Vulgar language is not allowed.' 
+      };
+    }
+  }
+  
+  // Remove special characters (keep basic punctuation)
   cleaned = cleaned.replace(/[^a-zA-Z0-9 .,!?'-]/g, '');
   
   // Limit consecutive special characters
-  cleaned = cleaned.replace(/[.,!?'-]{3,}/g, (match) => match.substring(0, 2));
+  cleaned = cleaned.replace(/[.,!?'-]{4,}/g, '...');
   
-  // Fix ALL CAPS (if more than 70% of letters are uppercase and length > 10, convert to title case)
+  // Fix ALL CAPS (if more than 70% of letters are uppercase and length > 10, convert to sentence case)
   const letters = cleaned.replace(/[^a-zA-Z]/g, '');
   if (letters.length > 10) {
     const uppercase = cleaned.replace(/[^A-Z]/g, '').length;
     const ratio = uppercase / letters.length;
     if (ratio > 0.7) {
-      // Convert to title case
-      cleaned = cleaned.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+      cleaned = cleaned.toLowerCase();
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
     }
   }
   
-  // Remove excessive spaces (3 or more spaces)
-  cleaned = cleaned.replace(/\s{3,}/g, '  ');
+  // Remove excessive spaces
+  cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
   
-  // Trim only at start and end
-  cleaned = cleaned.trim();
-  
-  // Basic profanity filter (simple word list - expand as needed)
-  const profanityList = ['fuck', 'shit', 'damn', 'ass', 'bitch', 'crap'];
-  profanityList.forEach(badWord => {
-    const regex = new RegExp(`\\b${badWord}\\b`, 'gi');
-    cleaned = cleaned.replace(regex, '*'.repeat(badWord.length));
-  });
-  
-  return cleaned;
+  return { isValid: true, cleanedText: cleaned };
 };
 
 // Light normalization for lake names
@@ -123,6 +164,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const [detectedLake, setDetectedLake] = useState<LakeSuggestion | null>(null);
   const [lakeConfirmed, setLakeConfirmed] = useState<boolean | null>(null); // null = not answered, true = yes, false = no
@@ -303,8 +345,13 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
 
   // Search lakes as user types with debounce to prevent flickering
   const handleLakeNameChange = async (value: string) => {
-    const sanitized = sanitizeText(value, 'lake name');
-    setFormData(prev => ({ ...prev, lake: sanitized }));
+    const validation = sanitizeText(value, 'Lake name');
+    if (!validation.isValid) {
+      setValidationErrors(prev => ({ ...prev, lake: validation.error! }));
+      return;
+    }
+    setValidationErrors(prev => {const {lake, ...rest} = prev; return rest;});
+    setFormData(prev => ({ ...prev, lake: validation.cleanedText }));
     
     // Clear existing timeout
     if (searchTimeout) {
@@ -663,17 +710,37 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 <input
                   type="text"
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  onBlur={(e) => setFormData({ ...formData, location: sanitizeText(e.target.value, 'location') })}
+                  onChange={(e) => {
+                    const validation = sanitizeText(e.target.value, 'Location');
+                    if (!validation.isValid) {
+                      setValidationErrors(prev => ({ ...prev, location: validation.error! }));
+                      return;
+                    }
+                    setValidationErrors(prev => {const {location, ...rest} = prev; return rest;});
+                    setFormData({ ...formData, location: validation.cleanedText });
+                  }}
                   placeholder="e.g., West shore, North bay, Near boat launch..."
                   style={{
                     width: '100%',
                     padding: '0.75rem',
                     borderRadius: '0.5rem',
-                    border: '2px solid var(--primary-light)',
+                    border: validationErrors.location ? '2px solid #d32f2f' : '2px solid var(--primary-light)',
                     fontSize: '0.95rem'
                   }}
                 />
+                {validationErrors.location && (
+                  <div style={{
+                    padding: '0.5rem',
+                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                    border: '1px solid #d32f2f',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: '#d32f2f',
+                    marginTop: '0.5rem'
+                  }}>
+                    ⚠️ {validationErrors.location}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1141,19 +1208,48 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 </label>
                 <textarea
                   value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: sanitizeText(e.target.value, 'notes') })}
+                  onChange={(e) => {
+                    const validation = sanitizeText(e.target.value, 'Notes');
+                    if (!validation.isValid) {
+                      setValidationErrors(prev => ({ ...prev, notes: validation.error! }));
+                      return;
+                    }
+                    setValidationErrors(prev => {const {notes, ...rest} = prev; return rest;});
+                    setFormData({ ...formData, notes: validation.cleanedText });
+                  }}
                   placeholder="Any additional observations about ice conditions, access, or safety concerns..."
                   rows={5}
                   style={{
                     width: '100%',
                     padding: '0.75rem',
                     borderRadius: '0.5rem',
-                    border: '2px solid var(--primary-light)',
+                    border: validationErrors.notes ? '2px solid #d32f2f' : '2px solid var(--primary-light)',
                     fontSize: '0.95rem',
                     fontFamily: 'inherit',
                     resize: 'vertical'
                   }}
                 />
+                {validationErrors.notes && (
+                  <div style={{
+                    padding: '0.5rem',
+                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                    border: '1px solid #d32f2f',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: '#d32f2f',
+                    marginTop: '0.5rem'
+                  }}>
+                    ⚠️ {validationErrors.notes}
+                  </div>
+                )}
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  marginTop: '0.5rem',
+                  fontStyle: 'italic'
+                }}>
+                  Please keep content professional and family-friendly. No vulgar language, spam, or URLs allowed.
+                </p>
               </div>
             </div>
           )}

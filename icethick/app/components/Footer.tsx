@@ -1,4 +1,9 @@
+'use client';
+
 export default function Footer() {
+  // Extract to prevent SSR hydration mismatch
+  const currentYear = new Date().getFullYear();
+  
   return (
     <footer style={{
       background: 'var(--primary-dark)',
@@ -104,7 +109,20 @@ export default function Footer() {
             }}>
               <li><a href="/safety-guide" style={{ color: 'white', textDecoration: 'none' }}>Safety Guide</a></li>
               <li><a href="/about" style={{ color: 'white', textDecoration: 'none' }}>About</a></li>
+              <li><a href="/contact" style={{ color: 'white', textDecoration: 'none' }}>Contact</a></li>
+              <li><a href="/acceptable-use" style={{ color: 'white', textDecoration: 'none' }}>Acceptable Use</a></li>
               <li><a href="/disclaimer" style={{ color: 'white', textDecoration: 'none' }}>Full Disclaimer</a></li>
+              <li>
+                <a 
+                  href="https://github.com/Austtiin/IceRelay/issues" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  🐛 Report an Issue
+                </a>
+                <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '1.25rem' }}>(GitHub sign-in required)</span>
+              </li>
             </ul>
           </div>
         </div>
@@ -118,7 +136,7 @@ export default function Footer() {
           opacity: 0.85
         }}>
           <p style={{ marginBottom: '0.5rem' }}>
-            © {new Date().getFullYear()} Ice Relay. All rights reserved. All information subject to change.
+            © {currentYear} Ice Relay. All rights reserved. All information subject to change.
           </p>
           <p>
             Created by{' '}

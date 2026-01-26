@@ -2,11 +2,23 @@ import type { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Lake Ice Thickness Map | Minnesota & Midwest | Ice Relay",
+  title: "Ice Thickness Map | Current Ice Conditions & Safety Reports | Ice Relay",
   description:
-    "Explore an interactive map of real ice thickness reports across Minnesota and Midwest lakes. Zoom in to see recent lake ice conditions near you.",
+    "Interactive map of current ice conditions and ice fishing safety reports across Minnesota and Midwest lakes. View ice thickness, snow depth, and safe ice conditions near you.",
+  keywords: [
+    "ice thickness map",
+    "current ice conditions",
+    "ice fishing map",
+    "safe ice thickness",
+    "minnesota ice map",
+    "lake ice conditions map",
+    "ice safety map"
+  ],
   alternates: {
     canonical: "https://icerelay.com/map/",
+  },
+  other: {
+    'mapbox:telemetry': 'false',
   },
 };
 

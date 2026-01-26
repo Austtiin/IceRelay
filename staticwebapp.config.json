@@ -5,6 +5,24 @@
       "allowedRoles": ["anonymous"]
     },
     {
+      "route": "/robots.txt",
+      "headers": {
+        "content-type": "text/plain"
+      }
+    },
+    {
+      "route": "/ads.txt",
+      "headers": {
+        "content-type": "text/plain"
+      }
+    },
+    {
+      "route": "/sitemap.xml",
+      "headers": {
+        "content-type": "application/xml"
+      }
+    },
+    {
       "route": "/_next/static/*",
       "headers": {
         "cache-control": "public, max-age=86400, immutable"
@@ -25,13 +43,15 @@
   ],
   "navigationFallback": {
     "rewrite": "/404.html",
-    "exclude": ["/images/*.{png,jpg,gif,ico}", "/css/*", "/api/*"]
+    "exclude": ["/images/*.{png,jpg,gif,ico}", "/css/*", "/api/*", "/robots.txt", "/ads.txt", "/sitemap.xml"]
   },
   "globalHeaders": {
     "content-security-policy": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;"
   },
   "mimeTypes": {
-    ".json": "application/json"
+    ".json": "application/json",
+    ".txt": "text/plain",
+    ".xml": "application/xml"
   },
   "platform": {
     "apiRuntime": "dotnet-isolated:8.0"

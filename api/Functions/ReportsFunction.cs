@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 using IceRelay.Api.Models;
+using IceRelay.Api.Helpers;
 using Microsoft.Data.SqlClient;
 using System.Security.Cryptography;
 
@@ -280,6 +281,28 @@ public class ReportsFunction
     {
         _logger.LogInformation("Creating new ice report");
 
+        // Get IP address for rate limiting
+        var ipAddress = req.Headers.TryGetValues("X-Forwarded-For", out var values) 
+            ? values.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim() ?? "unknown"
+            : "unknown";
+
+        // Check rate limits
+        if (RateLimiter.IsRateLimited(ipAddress, out var rateLimitError))
+        {
+            _logger.LogWarning($"Rate limit exceeded for IP: {ipAddress}");
+            var errorResponse = req.CreateResponse(HttpStatusCode.TooManyRequests);
+            await errorResponse.WriteStringAsync(rateLimitError!);
+            return errorResponse;
+        }
+
+        if (!RateLimiter.CanSubmitReport(ipAddress, out var reportLimitError))
+        {
+            _logger.LogWarning($"Report submission limit exceeded for IP: {ipAddress}");
+            var errorResponse = req.CreateResponse(HttpStatusCode.TooManyRequests);
+            await errorResponse.WriteStringAsync(reportLimitError!);
+            return errorResponse;
+        }
+
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         var reportRequest = JsonSerializer.Deserialize<CreateReportRequest>(requestBody, new JsonSerializerOptions
         {
@@ -301,6 +324,15 @@ public class ReportsFunction
             return badResponse;
         }
 
+        // Check for duplicate location
+        if (RateLimiter.IsRecentDuplicate(ipAddress, reportRequest.Latitude, reportRequest.Longitude, out var duplicateError))
+        {
+            _logger.LogWarning($"Duplicate report detected for IP: {ipAddress}");
+            var errorResponse = req.CreateResponse(HttpStatusCode.Conflict);
+            await errorResponse.WriteStringAsync(duplicateError!);
+            return errorResponse;
+        }
+
         if (reportRequest.Thickness < 0 || reportRequest.Thickness > 50)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
@@ -313,6 +345,47 @@ public class ReportsFunction
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
             await badResponse.WriteStringAsync("Surface type is required");
             return badResponse;
+        }
+
+        // Validate and sanitize lake name
+        var lakeValidation = ContentValidator.ValidateLakeName(reportRequest.Lake);
+        if (!lakeValidation.IsValid)
+        {
+            _logger.LogWarning($"Invalid lake name: {reportRequest.Lake}");
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync(lakeValidation.ErrorMessage!);
+            return badResponse;
+        }
+        var cleanedLakeName = lakeValidation.CleanedText!;
+
+        // Validate and sanitize location
+        string? cleanedLocation = null;
+        if (!string.IsNullOrWhiteSpace(reportRequest.Location))
+        {
+            var locationValidation = ContentValidator.ValidateText(reportRequest.Location, "Location", 200);
+            if (!locationValidation.IsValid)
+            {
+                _logger.LogWarning($"Invalid location text: {reportRequest.Location}");
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteStringAsync(locationValidation.ErrorMessage!);
+                return badResponse;
+            }
+            cleanedLocation = locationValidation.CleanedText;
+        }
+
+        // Validate and sanitize notes
+        string? cleanedNotes = null;
+        if (!string.IsNullOrWhiteSpace(reportRequest.Notes))
+        {
+            var notesValidation = ContentValidator.ValidateText(reportRequest.Notes, "Notes", 500);
+            if (!notesValidation.IsValid)
+            {
+                _logger.LogWarning($"Invalid notes text: {reportRequest.Notes}");
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteStringAsync(notesValidation.ErrorMessage!);
+                return badResponse;
+            }
+            cleanedNotes = notesValidation.CleanedText;
         }
 
         try
@@ -329,9 +402,6 @@ public class ReportsFunction
             }
 
             // Generate anonymous session hash from IP
-            var ipAddress = req.Headers.TryGetValues("X-Forwarded-For", out var values) 
-                ? values.FirstOrDefault() ?? "unknown"
-                : "unknown";
             var sessionHash = GenerateSessionHash(ipAddress);
 
             // Insert into SQL database
@@ -366,7 +436,7 @@ public class ReportsFunction
             await using var command = new SqlCommand(sql, connection);
             command.Parameters.AddWithValue("@Latitude", reportRequest.Latitude);
             command.Parameters.AddWithValue("@Longitude", reportRequest.Longitude);
-            command.Parameters.AddWithValue("@LakeName", reportRequest.Lake ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@LakeName", cleanedLakeName);
             command.Parameters.AddWithValue("@IceThicknessIn", reportRequest.Thickness);
             command.Parameters.AddWithValue("@MeasurementType", reportRequest.IsMeasured ? "Measured" : "Observed");
             
@@ -382,8 +452,8 @@ public class ReportsFunction
             };
             command.Parameters.AddWithValue("@SurfaceType", surfaceType);
             
-            // Combine notes with ice quality and location
-            var notesText = reportRequest.Notes ?? "";
+            // Combine notes with ice quality and location (using cleaned values)
+            var notesText = cleanedNotes ?? "";
             if (reportRequest.IceQuality != null && reportRequest.IceQuality.Any())
             {
                 var qualityText = string.Join(", ", reportRequest.IceQuality);
@@ -391,11 +461,11 @@ public class ReportsFunction
                     ? $"Conditions: {qualityText}"
                     : $"{notesText} | Conditions: {qualityText}";
             }
-            if (!string.IsNullOrWhiteSpace(reportRequest.Location))
+            if (!string.IsNullOrWhiteSpace(cleanedLocation))
             {
                 notesText = string.IsNullOrWhiteSpace(notesText)
-                    ? $"Location: {reportRequest.Location}"
-                    : $"{notesText} | Location: {reportRequest.Location}";
+                    ? $"Location: {cleanedLocation}"
+                    : $"{notesText} | Location: {cleanedLocation}";
             }
             command.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notesText) ? (object)DBNull.Value : notesText);
             command.Parameters.AddWithValue("@SessionHash", sessionHash);
@@ -410,22 +480,22 @@ public class ReportsFunction
                 createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
             }
 
-            _logger.LogInformation($"Report created successfully: ID={insertedId}, Lake={reportRequest.Lake}");
+            _logger.LogInformation($"Report created successfully: ID={insertedId}, Lake={cleanedLakeName}");
 
             // Return created report
             var report = new IceReport
             {
                 Id = insertedId,
-                LakeName = reportRequest.Lake,
+                LakeName = cleanedLakeName,
                 Thickness = reportRequest.Thickness,
-                Location = reportRequest.Location,
+                Location = cleanedLocation,
                 Latitude = reportRequest.Latitude,
                 Longitude = reportRequest.Longitude,
                 SurfaceType = reportRequest.SurfaceType,
                 IsMeasured = reportRequest.IsMeasured,
                 Method = reportRequest.Method,
                 IceQuality = reportRequest.IceQuality,
-                Notes = reportRequest.Notes,
+                Notes = cleanedNotes,
                 CreatedAt = createdAt ?? DateTime.UtcNow,
                 IpAddress = ipAddress
             };

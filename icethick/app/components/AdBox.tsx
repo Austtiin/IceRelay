@@ -8,15 +8,41 @@ type AdBoxProps = {
 
 export default function AdBox({ children }: AdBoxProps) {
   return (
-    <aside className="w-full max-w-sm mx-auto my-6 rounded-xl border border-slate-200 bg-white shadow-sm px-4 py-3 text-center text-xs text-slate-600">
-      <div className="mb-1 font-semibold tracking-[0.08em] text-[10px] uppercase text-slate-500">
+    <aside style={{
+      width: '100%',
+      maxWidth: '24rem',
+      margin: '1.5rem auto',
+      borderRadius: '0.75rem',
+      border: '1px solid #e2e8f0',
+      backgroundColor: 'white',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+      padding: '0.75rem 1rem',
+      textAlign: 'center',
+      fontSize: '0.75rem',
+      color: '#64748b'
+    }}>
+      <div style={{
+        marginBottom: '0.25rem',
+        fontWeight: 600,
+        letterSpacing: '0.08em',
+        fontSize: '10px',
+        textTransform: 'uppercase',
+        color: '#94a3b8'
+      }}>
         Advertisement
       </div>
-      <div className="text-[11px] text-slate-500">
+      <div style={{
+        fontSize: '11px',
+        color: '#94a3b8'
+      }}>
         helps keep the site free
       </div>
       {children && (
-        <div className="mt-2 text-[11px] text-slate-400">
+        <div style={{
+          marginTop: '0.5rem',
+          fontSize: '11px',
+          color: '#cbd5e1'
+        }}>
           {children}
         </div>
       )}

@@ -161,8 +161,7 @@ export default function NearMePage() {
                 style={{
                   position: 'relative',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem'
+                  flexDirection: 'column'
                 }}
               >
                 <input
@@ -193,7 +192,7 @@ export default function NearMePage() {
                 {showSuggestions && lakeSuggestions.length > 0 && (
                   <div style={{
                     position: 'absolute',
-                    top: '100%',
+                    top: 'calc(100% + 4px)',
                     left: 0,
                     right: 0,
                     background: 'white',
@@ -202,7 +201,6 @@ export default function NearMePage() {
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     maxHeight: '240px',
                     overflowY: 'auto',
-                    marginTop: '0.25rem',
                     zIndex: 10
                   }}>
                     {lakeSuggestions.map((suggestion, idx) => {

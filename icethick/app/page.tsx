@@ -303,7 +303,7 @@ export default function Home() {
               letterSpacing: '-0.02em',
               textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
             }}>
-              Ice Thickness Across the Midwest
+              Safe Ice Thickness Near You
             </h1>
             <p style={{
               fontSize: '1.25rem',
@@ -312,7 +312,7 @@ export default function Home() {
               margin: '0 auto 2.5rem',
               textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
             }}>
-              Community-reported ice fishing conditions. Stay safe with real-time ice thickness reports from anglers like you.
+              Current ice conditions and ice fishing safety reports from Minnesota and Midwest lakes. Check ice thickness before you go.
             </p>
             <div style={{
               display: 'flex',
@@ -372,6 +372,49 @@ export default function Home() {
                   fill="#fafbfc" />
           </svg>
         </div>
+
+        {/* User-Submitted Disclaimer Banner */}
+        <section style={{ 
+          padding: '0 0 2rem',
+          background: '#fafbfc',
+          position: 'relative',
+          zIndex: 10
+        }}>
+          <div className="container" style={{ maxWidth: '1000px' }}>
+            <div style={{
+              background: 'rgba(254, 95, 85, 0.1)',
+              border: '2px solid var(--accent-danger)',
+              borderRadius: '1rem',
+              padding: '1.5rem',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '1rem'
+            }}>
+              <div style={{ fontSize: '2rem', lineHeight: 1 }}>⚠️</div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  color: 'var(--accent-danger)',
+                  marginBottom: '0.5rem'
+                }}>
+                  All Reports Are User-Submitted
+                </h3>
+                <p style={{
+                  fontSize: '0.95rem',
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                  lineHeight: 1.6
+                }}>
+                  Ice conditions are reported by community members and cannot be independently verified. 
+                  <strong> Always measure ice thickness yourself before venturing out.</strong> Ice conditions 
+                  vary greatly across a single lake and can change rapidly. <strong>No ice is 100% safe.</strong> Your 
+                  safety is your responsibility.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Recent Reports + Support Ads */}
         <section style={{ 

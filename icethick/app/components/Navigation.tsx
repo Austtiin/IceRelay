@@ -123,6 +123,90 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             <span style={{ fontWeight: 500 }}>View Ice Near Me</span>
           </Link>
 
+          <Link
+            href="/map"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--foreground)',
+              transition: 'background 0.2s',
+              marginBottom: '0.5rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.25rem' }}>🗺️</span>
+            <span style={{ fontWeight: 500 }}>Map View</span>
+          </Link>
+
+          <Link
+            href="/safety-guide"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--foreground)',
+              transition: 'background 0.2s',
+              marginBottom: '0.5rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.25rem' }}>❄️</span>
+            <span style={{ fontWeight: 500 }}>Safety Guide</span>
+          </Link>
+
+          <Link
+            href="/about"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--foreground)',
+              transition: 'background 0.2s',
+              marginBottom: '0.5rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
+            <span style={{ fontWeight: 500 }}>About</span>
+          </Link>
+
+          <Link
+            href="/contact"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--foreground)',
+              transition: 'background 0.2s',
+              marginBottom: '0.5rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.25rem' }}>📧</span>
+            <span style={{ fontWeight: 500 }}>Contact</span>
+          </Link>
+
           <button
             onClick={() => {
               onNewReport();

@@ -39,6 +39,8 @@ export default function MapPage() {
   const [currentZoom, setCurrentZoom] = useState(5);
   const [isMounted, setIsMounted] = useState(false);
   const [hasMapboxToken, setHasMapboxToken] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
   // Handle client-side mounting
@@ -49,9 +51,22 @@ export default function MapPage() {
     if (token) {
       mapboxgl.accessToken = token;
       setHasMapboxToken(true);
+      
+      // Disable Mapbox telemetry to prevent blocked requests
+      if (typeof mapboxgl.workerUrl === 'undefined') {
+        (mapboxgl as any).workerClass = undefined; // Prevents worker-related telemetry
+      }
     } else {
       console.error('Mapbox token is not configured. Set NEXT_PUBLIC_MAPBOX_TOKEN before building.');
     }
+    
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Initialize map
@@ -188,7 +203,22 @@ export default function MapPage() {
         el.style.height = '26px';
         el.style.borderRadius = '50%';
         el.style.background = 'radial-gradient(circle, rgba(231,76,60,0.85) 0%, rgba(231,76,60,0.0) 75%)';
-        el.style.pointerEvents = 'none';
+        el.style.pointerEvents = 'auto';
+        el.style.cursor = 'pointer';
+        
+        // Add click handler for heat dots
+        el.addEventListener('click', () => {
+          if (map.current) {
+            map.current.flyTo({
+              center: [lng, lat],
+              zoom: 10,
+              duration: 1000
+            });
+            setSelectedReport(report);
+            setSidebarOpen(true);
+          }
+        });
+        
         marker = new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map.current);
       } else {
         // High-zoom: detailed pin with popup
@@ -199,6 +229,19 @@ export default function MapPage() {
         el.style.height = '40px';
         el.style.backgroundSize = 'cover';
         el.style.cursor = 'pointer';
+
+        // Add click handler for markers to open sidebar
+        el.addEventListener('click', () => {
+          setSelectedReport(report);
+          setSidebarOpen(true);
+          if (map.current) {
+            map.current.flyTo({
+              center: [lng, lat],
+              zoom: Math.max(map.current.getZoom(), 10),
+              duration: 800
+            });
+          }
+        });
 
         const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
           <div style="padding: 8px;">
@@ -221,15 +264,39 @@ export default function MapPage() {
 
   // Time ago helper
   const getTimeAgo = (createdAt: string): string => {
+    if (!createdAt) return 'Just now';
+    
     const date = new Date(createdAt);
     const now = new Date();
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Just now';
+    }
+    
+    // Calculate time difference (positive = past, negative = future)
     const diffMs = now.getTime() - date.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffMins = diffMs / 60000;
+    const diffHours = diffMins / 60;
     const diffDays = diffHours / 24;
-
+    
+    // Handle future dates
+    if (diffMs < 0) {
+      return 'Just now';
+    }
+    
+    // If less than 1 hour, show "Just now"
     if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${Math.floor(diffHours)} hour${Math.floor(diffHours) !== 1 ? 's' : ''} ago`;
-    return `${Math.floor(diffDays)} day${Math.floor(diffDays) !== 1 ? 's' : ''} ago`;
+    
+    // If less than 24 hours, show hours
+    if (diffHours < 24) {
+      const hours = Math.floor(diffHours);
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    
+    // Otherwise show days
+    const days = Math.floor(diffDays);
+    return `${days} day${days !== 1 ? 's' : ''} ago`;
   };
 
   // Calculate distance from map center
@@ -282,39 +349,119 @@ export default function MapPage() {
           </Box>
         </div>
       ) : (
-      <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
+      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        {/* User-Submitted Disclaimer Banner */}
+        <div style={{
+          background: 'rgba(254, 95, 85, 0.95)',
+          color: 'white',
+          padding: isMobile ? '8px 12px' : '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: isMobile ? '0.8rem' : '0.9rem',
+          lineHeight: 1.4,
+          zIndex: 10,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+        }}>
+          <span style={{ fontSize: isMobile ? '1rem' : '1.2rem' }}>⚠️</span>
+          <span style={{ flex: 1 }}>
+            <strong>User-submitted reports:</strong> Always verify ice thickness yourself. No ice is 100% safe.
+          </span>
+        </div>
+
         {/* Map Container */}
         <div ref={mapContainer} style={{ flex: 1 }} />
 
-        {/* Sidebar */}
+        {/* Desktop Sidebar / Mobile Bottom Sheet */}
         {sidebarOpen && currentZoom >= 6 && (
-          <div style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            width: '350px',
-            maxHeight: 'calc(100vh - 180px)',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              ...(isMobile ? {
+                // Mobile: Bottom sheet that slides up
+                bottom: 0,
+                left: 0,
+                right: 0,
+                maxHeight: '65vh',
+                borderTopLeftRadius: '24px',
+                borderTopRightRadius: '24px',
+                animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '@keyframes slideUp': {
+                  from: {
+                    transform: 'translateY(100%)',
+                    opacity: 0
+                  },
+                  to: {
+                    transform: 'translateY(0)',
+                    opacity: 1
+                  }
+                }
+              } : {
+                // Desktop: Right sidebar
+                top: '16px',
+                right: '16px',
+                width: '350px',
+                maxHeight: 'calc(100vh - 180px)',
+                borderRadius: '12px',
+                animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                '@keyframes popIn': {
+                  from: {
+                    transform: 'scale(0.9)',
+                    opacity: 0
+                  },
+                  to: {
+                    transform: 'scale(1)',
+                    opacity: 1
+                  }
+                }
+              }),
+              backgroundColor: 'white',
+              boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              zIndex: 1000
+            }}
+          >
+            {/* Mobile: Drag Handle */}
+            {isMobile && (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                padding: '8px 0 4px',
+                cursor: 'pointer'
+              }}
+              onClick={() => setSidebarOpen(false)}
+              >
+                <Box sx={{
+                  width: '40px',
+                  height: '4px',
+                  backgroundColor: '#ddd',
+                  borderRadius: '2px'
+                }} />
+              </Box>
+            )}
+
             {/* Sidebar Header */}
             <div style={{
-              padding: '16px',
+              padding: isMobile ? '12px 16px 16px' : '16px',
               borderBottom: '1px solid var(--border-color)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
-                Reports in View ({reports.length})
+              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
+                {selectedReport 
+                  ? (selectedReport.LakeName || selectedReport.lakeName || 'Unknown Lake')
+                  : `Reports in View (${reports.length})`
+                }
               </Typography>
               <Button
                 size="small"
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  setSelectedReport(null);
+                }}
                 sx={{ minWidth: 'auto', padding: '4px' }}
               >
                 <CloseIcon />
@@ -322,10 +469,63 @@ export default function MapPage() {
             </div>
 
             {/* Sidebar Content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '8px' }}>
               {isLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
                   <CircularProgress size={40} />
+                </Box>
+              ) : selectedReport ? (
+                // Show selected report details
+                <Box sx={{ padding: '8px' }}>
+                  <Box sx={{ marginBottom: '16px' }}>
+                    <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block' }}>
+                      Ice Thickness
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary-dark)' }}>
+                      {selectedReport.Thickness || selectedReport.thickness}"
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block' }}>
+                        Surface Type
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                        {selectedReport.SurfaceType || selectedReport.surfaceType || 'Unknown'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block' }}>
+                        Reported
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {getTimeAgo(selectedReport.CreatedAt || selectedReport.createdAt || new Date().toISOString())}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {selectedReport.Location || selectedReport.location ? (
+                    <Box sx={{ marginBottom: '16px' }}>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block' }}>
+                        Location
+                      </Typography>
+                      <Typography variant="body2">
+                        {selectedReport.Location || selectedReport.location}
+                      </Typography>
+                    </Box>
+                  ) : null}
+
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => {
+                      setSelectedReport(null);
+                    }}
+                    sx={{ marginTop: '16px' }}
+                  >
+                    View All Reports
+                  </Button>
                 </Box>
               ) : reports.length === 0 ? (
                 <Box sx={{ padding: '32px', textAlign: 'center' }}>
@@ -342,6 +542,8 @@ export default function MapPage() {
                   const surfaceType = report.SurfaceType || report.surfaceType || 'unknown';
                   const createdAt = report.CreatedAt || report.createdAt || new Date().toISOString();
                   const reportId = report.Id || report.id || Math.random().toString();
+                  const selectedId = selectedReport ? ((selectedReport as Report).Id || (selectedReport as Report).id) : null;
+                  const isSelected = selectedId === reportId;
                   
                   return (
                   <div
@@ -349,18 +551,29 @@ export default function MapPage() {
                     style={{
                       padding: '12px',
                       marginBottom: '8px',
-                      backgroundColor: '#f8f9fa',
+                      backgroundColor: isSelected ? '#e3f2fd' : '#f8f9fa',
                       borderRadius: '8px',
                       cursor: 'pointer',
-                      transition: 'background-color 0.2s'
+                      transition: 'all 0.2s',
+                      border: isSelected ? '2px solid #1976d2' : '2px solid transparent'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#e9ecef';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#f8f9fa';
+                      }
+                    }}
                     onClick={() => {
+                      setSelectedReport(report);
                       if (map.current) {
                         map.current.flyTo({
                           center: [lng, lat],
-                          zoom: 12
+                          zoom: 12,
+                          duration: 800
                         });
                       }
                     }}
@@ -399,7 +612,7 @@ export default function MapPage() {
                 })
               )}
             </div>
-          </div>
+          </Box>
         )}
 
         {/* Toggle Sidebar Button (when closed) */}
@@ -409,17 +622,47 @@ export default function MapPage() {
             onClick={() => setSidebarOpen(true)}
             sx={{
               position: 'absolute',
-              top: '16px',
-              right: '16px',
-              borderRadius: '50%',
-              minWidth: 'auto',
-              width: '48px',
-              height: '48px',
-              padding: 0,
+              ...(isMobile ? {
+                bottom: '24px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                borderRadius: '24px',
+                width: 'auto',
+                padding: '12px 24px',
+                animation: 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                '@keyframes bounceIn': {
+                  '0%': {
+                    transform: 'translateX(-50%) scale(0)',
+                    opacity: 0
+                  },
+                  '50%': {
+                    transform: 'translateX(-50%) scale(1.1)',
+                  },
+                  '100%': {
+                    transform: 'translateX(-50%) scale(1)',
+                    opacity: 1
+                  }
+                }
+              } : {
+                top: '16px',
+                right: '16px',
+                borderRadius: '50%',
+                width: '48px',
+                height: '48px',
+                minWidth: 'auto',
+                padding: 0
+              }),
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
             }}
           >
-            <LocationOnIcon />
+            {isMobile ? (
+              <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <LocationOnIcon fontSize="small" />
+                View Reports ({reports.length})
+              </Typography>
+            ) : (
+              <LocationOnIcon />
+            )}
           </Button>
         )}
 

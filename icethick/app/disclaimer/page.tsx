@@ -5,11 +5,18 @@ import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { useState } from 'react';
 
+const pageStyles = {
+  container: { minHeight: '100vh', display: 'flex', flexDirection: 'column' as const },
+  main: { flex: 1, padding: '3rem 0' },
+  contentContainer: { maxWidth: '800px' }
+};
+
 export default function DisclaimerPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={pageStyles.container}>
       <Header 
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
         onNewReport={() => {}}
@@ -20,8 +27,8 @@ export default function DisclaimerPage() {
         onNewReport={() => {}}
       />
 
-      <main style={{ flex: 1, padding: '3rem 0' }}>
-        <div className="container" style={{ maxWidth: '800px' }}>
+      <main style={pageStyles.main}>
+        <div className="container" style={pageStyles.contentContainer}>
           <div style={{
             background: 'rgba(254, 95, 85, 0.15)',
             border: '3px solid var(--accent-danger)',
@@ -57,8 +64,20 @@ export default function DisclaimerPage() {
 
             <section style={{ marginBottom: '2.5rem' }}>
               <h2 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-dark)' }}>
-                Data Accuracy & Reliability
+                User-Submitted Reports & Verification
               </h2>
+              <div style={{
+                background: 'rgba(254, 95, 85, 0.08)',
+                border: '2px solid var(--accent-danger)',
+                borderRadius: '0.75rem',
+                padding: '1.5rem',
+                marginBottom: '1rem'
+              }}>
+                <p style={{ marginBottom: '1rem', fontWeight: 600 }}>
+                  All ice thickness reports on Ice Relay are submitted by community members and are <strong>NOT</strong> verified, 
+                  validated, or endorsed by Ice Relay.
+                </p>
+              </div>
               <p style={{ marginBottom: '1rem' }}>
                 All ice thickness data on Ice Relay is <strong>crowd-sourced from community members</strong> and may be:
               </p>
@@ -68,7 +87,12 @@ export default function DisclaimerPage() {
                 <li><strong>Incomplete:</strong> Reports represent specific locations and may not reflect conditions across an entire body of water</li>
                 <li><strong>Estimated:</strong> &quot;Observed&quot; reports are visual estimates and not precise measurements</li>
                 <li><strong>Unverified:</strong> We cannot independently verify the accuracy of community-submitted data</li>
+                <li><strong>Malicious:</strong> Despite our spam prevention efforts, false reports may still be submitted</li>
               </ul>
+              <p style={{ marginTop: '1rem', fontWeight: 600, color: 'var(--accent-danger)' }}>
+                ⚠️ Do not trust reports blindly. Always perform your own ice thickness measurements at multiple locations 
+                before venturing onto any ice surface. What is reported safe at one location can be dangerously thin just feet away.
+              </p>
             </section>
 
             <section style={{ marginBottom: '2.5rem' }}>
@@ -84,6 +108,7 @@ export default function DisclaimerPage() {
                 <li>Never rely solely on community reports or third-party information</li>
                 <li>Understand that ice thickness varies significantly across a single lake</li>
                 <li>Be aware that weather, currents, springs, and other factors affect ice integrity</li>
+                <li>Review official ice safety guidelines and take proper safety training</li>
                 <li>When in doubt, <strong>STAY OFF THE ICE</strong></li>
               </ul>
             </section>
@@ -133,6 +158,7 @@ export default function DisclaimerPage() {
                 <li>You are responsible for the accuracy of your submissions</li>
                 <li>False or malicious reports may harm others and could have legal consequences</li>
                 <li>Ice Relay reserves the right to remove any content without notice</li>
+                <li>You must comply with our <a href="/acceptable-use" style={{ color: 'var(--primary-dark)', fontWeight: 600, textDecoration: 'underline' }}>Acceptable Use Policy</a>, which prohibits illegal, harmful, adult, hateful, or spam content</li>
               </ul>
             </section>
 
