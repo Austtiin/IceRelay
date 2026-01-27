@@ -78,11 +78,18 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary-medium)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.75rem',
+                position: 'relative' as const
               }}>
                 Ice Thickness Guidelines
               </h2>
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(to right, var(--primary-medium) 0%, var(--primary-light) 100%)',
+                borderRadius: '3px',
+                marginBottom: '1.5rem',
+                width: '100%'
+              }} />
               <p style={{ marginBottom: '1.5rem', fontSize: '1.05rem' }}>
                 These guidelines apply to <strong>clear, solid ice only</strong>. White ice, snow-covered ice, or slush requires significantly greater thickness.
               </p>
@@ -183,11 +190,18 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary-medium)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.75rem',
+                position: 'relative' as const
               }}>
                 Understanding Ice Types
               </h2>
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(to right, var(--primary-medium) 0%, var(--primary-light) 100%)',
+                borderRadius: '3px',
+                marginBottom: '1.5rem',
+                width: '100%'
+              }} />
               <div style={{ display: 'grid', gap: '1.25rem' }}>
                 <div style={{
                   background: 'white',
@@ -246,11 +260,18 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary-medium)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.75rem',
+                position: 'relative' as const
               }}>
-                ⚠️ Danger Signs - Stay Away
+                Warning Signs of Unsafe Ice
               </h2>
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(to right, var(--accent-danger) 0%, var(--accent-warning) 100%)',
+                borderRadius: '3px',
+                marginBottom: '1.5rem',
+                width: '100%'
+              }} />
               <div style={{
                 background: 'white',
                 borderRadius: '1rem',
@@ -294,11 +315,18 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary-medium)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.75rem',
+                position: 'relative' as const
               }}>
                 ✅ Safety Best Practices
               </h2>
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(to right, #4caf50 0%, var(--primary-medium) 100%)',
+                borderRadius: '3px',
+                marginBottom: '1.5rem',
+                width: '100%'
+              }} />
               <div style={{ display: 'grid', gap: '1.25rem' }}>
                 <div style={{
                   background: 'white',
@@ -374,11 +402,18 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary-medium)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.75rem',
+                position: 'relative' as const
               }}>
                 🆘 If You Fall Through Ice
               </h2>
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(to right, var(--accent-danger) 0%, #FF8C42 100%)',
+                borderRadius: '3px',
+                marginBottom: '1.5rem',
+                width: '100%'
+              }} />
               <div style={{
                 background: 'linear-gradient(135deg, rgba(254, 95, 85, 0.15) 0%, rgba(254, 95, 85, 0.05) 100%)',
                 border: '3px solid var(--accent-danger)',
@@ -431,11 +466,18 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary-medium)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.75rem',
+                position: 'relative' as const
               }}>
                 🌡️ Weather Factors That Weaken Ice
               </h2>
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(to right, var(--primary-medium) 0%, var(--primary-light) 100%)',
+                borderRadius: '3px',
+                marginBottom: '1.5rem',
+                width: '100%'
+              }} />
               <div style={{
                 background: 'white',
                 borderRadius: '1rem',

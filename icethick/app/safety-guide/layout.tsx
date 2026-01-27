@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     "ice safety equipment"
   ],
   alternates: {
-    canonical: "https://icerelay.com/safety-guide/",
+    canonical: "https://www.icerelay.app/safety-guide/",
   },
 };
 

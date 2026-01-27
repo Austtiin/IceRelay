@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "minnesota ice reports"
   ],
   alternates: {
-    canonical: "https://icerelay.com/about/",
+    canonical: "https://www.icerelay.app/about/",
   },
 };
 

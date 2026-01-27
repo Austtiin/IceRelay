@@ -2,7 +2,7 @@
 
 **Community-driven ice thickness reporting for Minnesota lakes.** Share real-time ice conditions with fellow ice enthusiasts and help keep our community safe.
 
-🌐 **Live Site:** [icerelay.com](https://icerelay.app)  
+🌐 **Live Site:** [www.icerelay.app](https://www.icerelay.app)  
 📍 **Focused on:** Minnesota lakes and ice fishing spots
 
 ---
@@ -298,7 +298,7 @@ Ice Relay is open-source software created by [Austin Stephens](https://AustinSte
 - 🛟 **Your safety is your responsibility** - no ice is 100% safe
 - 🚨 **When in doubt, stay off the ice**
 
-Read our full [Safety Guide](https://icerelay.com/safety-guide) before heading out.
+Read our full [Safety Guide](https://www.icerelay.app/safety-guide) before heading out.
 
 ---
 

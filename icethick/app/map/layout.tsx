@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "ice safety map"
   ],
   alternates: {
-    canonical: "https://icerelay.com/map/",
+    canonical: "https://www.icerelay.app/map/",
   },
   other: {
     'mapbox:telemetry': 'false',

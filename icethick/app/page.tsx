@@ -119,7 +119,10 @@ export default function Home() {
   const getTimeAgo = (createdAt?: string | Date): string => {
     if (!createdAt) return 'Just now';
     
+    // Parse the date assuming it's UTC (from database)
     const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+    
+    // Get current time in CST (UTC-6 or UTC-5 depending on DST)
     const now = new Date();
     
     // Check if date is valid
@@ -128,7 +131,7 @@ export default function Home() {
       return 'Just now';
     }
     
-    // Calculate time difference (positive = past, negative = future)
+    // Calculate time difference (both dates are in local browser time)
     const diffMs = now.getTime() - date.getTime();
     const diffMins = diffMs / 60000;
     const diffHours = diffMins / 60;
@@ -292,6 +295,17 @@ export default function Home() {
           textAlign: 'center',
           overflow: 'hidden'
         }}>
+          {/* Gradient fade at top to blend with navbar */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '100px',
+            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 0%, transparent 100%)',
+            zIndex: 1
+          }} />
+          
           {/* Dark overlay for better text readability */}
           <div style={{
             position: 'absolute',
@@ -303,7 +317,7 @@ export default function Home() {
             zIndex: 1
           }} />
           
-          <div className="container" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="container" style={{ position: 'relative', zIndex: 3 }}>
             <h1 style={{
               fontSize: '3rem',
               fontWeight: 700,
@@ -368,51 +382,44 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Wave Transition */}
+        {/* Ice-themed divider */}
         <div style={{
-          position: 'relative',
-          marginTop: '-80px',
-          marginBottom: '-40px',
-          zIndex: 5
-        }}>
-          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style={{ width: '100%', height: '120px', display: 'block' }}>
-            <path d="M0,60 C300,100 600,20 900,60 C1050,80 1150,40 1200,60 L1200,120 L0,120 Z" 
-                  fill="#fafbfc" />
-          </svg>
-        </div>
+          height: '4px',
+          background: 'linear-gradient(to right, transparent 0%, rgba(189, 213, 234, 0.5) 20%, var(--primary-medium) 50%, rgba(189, 213, 234, 0.5) 80%, transparent 100%)',
+          marginTop: '-2px'
+        }} />
 
         {/* User-Submitted Disclaimer Banner */}
         <section style={{ 
-          padding: '0 0 2rem',
+          padding: '2.5rem 0 2rem',
           background: '#fafbfc',
-          position: 'relative',
-          zIndex: 10
+          position: 'relative'
         }}>
           <div className="container" style={{ maxWidth: '1000px' }}>
             <div style={{
-              background: 'rgba(254, 95, 85, 0.1)',
+              background: 'rgba(254, 95, 85, 0.08)',
               border: '2px solid var(--accent-danger)',
               borderRadius: '1rem',
-              padding: '1.5rem',
+              padding: '1rem 1.25rem',
               display: 'flex',
               alignItems: 'flex-start',
               gap: '1rem'
             }}>
-              <div style={{ fontSize: '2rem', lineHeight: 1 }}>⚠️</div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{
-                  fontSize: '1.1rem',
+                <div style={{ fontSize: '1.5rem', lineHeight: 1 }}>⚠️</div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{
+                    fontSize: '0.95rem',
                   fontWeight: 700,
                   color: 'var(--accent-danger)',
-                  marginBottom: '0.5rem'
+                  marginBottom: '0.4rem'
                 }}>
                   All Reports Are User-Submitted
                 </h3>
                 <p style={{
-                  fontSize: '0.95rem',
+                  fontSize: '0.85rem',
                   color: 'var(--text-primary)',
                   margin: 0,
-                  lineHeight: 1.6
+                  lineHeight: 1.5
                 }}>
                   Ice conditions are reported by community members and cannot be independently verified. 
                   <strong> Always measure ice thickness yourself before venturing out.</strong> Ice conditions 
@@ -424,31 +431,59 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Recent Reports + Support Ads */}
+        {/* Recent Reports + Support Ads - Pin Board Theme */}
         <section style={{ 
           padding: '4rem 0 5rem',
-          background: '#fafbfc'
+          backgroundImage: 'url(/pin-board-4301129_1920.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'top center',
+          backgroundRepeat: 'no-repeat',
+          position: 'relative'
         }}>
-          <div className="container" style={{ maxWidth: '1200px' }}>
+          <div className="container" style={{ maxWidth: '1200px', position: 'relative', zIndex: 1 }}>
             <div style={{
               marginBottom: '2.5rem',
-              textAlign: 'center'
+              textAlign: 'center',
+              paddingTop: '3rem'
             }}>
-              <h2 style={{
-                fontSize: '2rem',
-                fontWeight: 700,
-                color: 'var(--primary-dark)',
-                marginBottom: '0.5rem'
+              {/* Green sticky note */}
+              <div style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #d4f4dd 0%, #a8e6cf 100%)',
+                padding: '1.5rem 3rem',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08)',
+                transform: 'rotate(-1deg)',
+                position: 'relative',
+                border: '1px solid rgba(0,0,0,0.05)'
               }}>
-                Recent Reports
-              </h2>
-              <p style={{ 
-                color: 'var(--text-secondary)',
-                fontSize: '1rem',
-                marginBottom: '1.5rem'
-              }}>
-                Latest ice thickness data from the community
-              </p>
+                {/* Sticky note shadow/fold effect */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '0',
+                  right: '0',
+                  width: '0',
+                  height: '0',
+                  borderLeft: '20px solid transparent',
+                  borderBottom: '20px solid rgba(0,0,0,0.1)',
+                  transform: 'rotate(90deg) translate(10px, 10px)'
+                }} />
+                <h2 style={{
+                  fontSize: '2rem',
+                  fontWeight: 700,
+                  color: '#2d5016',
+                  marginBottom: '0.5rem',
+                  margin: 0
+                }}>
+                  Recent Reports
+                </h2>
+                <p style={{ 
+                  color: '#3d6b1f',
+                  fontSize: '1rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  Latest ice thickness data from the community
+                </p>
+              </div>
             </div>
 
             {/* Small ad box to help keep the site free */}
@@ -523,36 +558,67 @@ export default function Home() {
                 </div>
 
                 <div style={{ textAlign: 'center' }}>
+                  {/* Yellow sticky note style for button */}
+                  <div style={{
+                    display: 'inline-block',
+                    background: 'linear-gradient(135deg, #fff59d 0%, #ffeb3b 100%)',
+                    padding: '0.5rem',
+                    transform: 'rotate(1deg)',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)',
+                    position: 'relative',
+                    border: '1px solid rgba(0,0,0,0.05)',
+                    marginTop: '1rem'
+                  }}>
+                    {/* Thumbtack at top */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '-12px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: '20px',
+                      height: '20px',
+                      background: 'radial-gradient(circle, #2196F3 0%, #1976D2 70%)',
+                      borderRadius: '50%',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.4)',
+                      border: '2px solid #1565C0'
+                    }} />
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     size="large"
                     endIcon={<ArrowForwardIcon />}
                     href="/near-me"
                     sx={{
-                      borderColor: 'primary.dark',
-                      color: 'primary.dark',
+                      bgcolor: '#2196F3',
+                      color: 'white',
+                      fontWeight: 700,
+                      boxShadow: 'none',
                       '&:hover': {
-                        borderColor: 'primary.dark',
-                        bgcolor: 'primary.dark',
-                        color: 'white',
+                        bgcolor: '#1976D2',
+                        boxShadow: 'none',
+                        transform: 'translateY(-2px)',
                       },
                     }}
                   >
                     View All Reports Near Me
                   </Button>
+                  </div>
                 </div>
               </>
             )}
           </div>
         </section>
 
-        {/* Wave transition */}
-        <WaveDivider color="var(--primary-light)" flip={true} />
+        {/* Clean Ice-Themed Transition */}
+        <div style={{
+          height: '60px',
+          background: 'linear-gradient(to bottom, #e8e8e8 0%, rgba(189, 213, 234, 0.3) 50%, var(--primary-light) 100%)'
+        }} />
 
         {/* Ice Safety Scale - 5 Tiers */}
         <section style={{
           background: 'var(--primary-light)',
-          padding: '3rem 0'
+          padding: '3rem 0',
+          position: 'relative'
         }}>
           <div className="container">
             <h2 style={{
@@ -685,8 +751,14 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Wave Divider */}
+        <WaveDivider color="#fafbfc" flip={true} />
+
         {/* Support Ad near bottom of page */}
-        <section style={{ background: '#fafbfc', padding: '2rem 0 3rem' }}>
+        <section style={{ 
+          background: '#fafbfc', 
+          padding: '2rem 0 3rem'
+        }}>
           <div className="container" style={{ maxWidth: '900px', display: 'flex', justifyContent: 'center' }}>
             <AdBox />
           </div>

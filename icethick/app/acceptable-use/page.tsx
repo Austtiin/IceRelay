@@ -197,8 +197,8 @@ export default function AcceptableUsePage() {
             </h2>
             <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
               If you encounter content that violates this policy, please contact us at{' '}
-              <a href="mailto:support@icerelay.com" style={{ color: 'var(--primary-dark)', fontWeight: 600 }}>
-                support@icerelay.com
+              <a href="mailto:support@icerelay.app" style={{ color: 'var(--primary-dark)', fontWeight: 600 }}>
+                support@icerelay.app
               </a>{' '}
               or through our <a href="/contact" style={{ color: 'var(--primary-dark)', fontWeight: 600 }}>contact page</a>. 
               Include the specific report or content details to help us investigate.

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 interface NavigationProps {
   isOpen: boolean;
@@ -9,6 +10,19 @@ interface NavigationProps {
 }
 
 export default function Navigation({ isOpen, onClose, onNewReport }: NavigationProps) {
+  // Prevent body scroll when menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -81,6 +95,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
 
         {/* Menu Items */}
         <div style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
+          {/* Primary Navigation - Top */}
           <Link
             href="/"
             onClick={onClose}
@@ -99,7 +114,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
             <span style={{ fontSize: '1.25rem' }}>🏠</span>
-            <span style={{ fontWeight: 500 }}>Overview</span>
+            <span style={{ fontWeight: 500 }}>Home</span>
           </Link>
 
           <Link
@@ -144,69 +159,6 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             <span style={{ fontWeight: 500 }}>Map View</span>
           </Link>
 
-          <Link
-            href="/safety-guide"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              color: 'var(--foreground)',
-              transition: 'background 0.2s',
-              marginBottom: '0.5rem'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            <span style={{ fontSize: '1.25rem' }}>❄️</span>
-            <span style={{ fontWeight: 500 }}>Safety Guide</span>
-          </Link>
-
-          <Link
-            href="/about"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              color: 'var(--foreground)',
-              transition: 'background 0.2s',
-              marginBottom: '0.5rem'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
-            <span style={{ fontWeight: 500 }}>About</span>
-          </Link>
-
-          <Link
-            href="/contact"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              color: 'var(--foreground)',
-              transition: 'background 0.2s',
-              marginBottom: '0.5rem'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            <span style={{ fontSize: '1.25rem' }}>📧</span>
-            <span style={{ fontWeight: 500 }}>Contact</span>
-          </Link>
-
           <button
             onClick={() => {
               onNewReport();
@@ -227,7 +179,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
               fontWeight: 600,
               fontSize: '1rem',
               transition: 'all 0.2s',
-              marginBottom: '1rem'
+              marginBottom: '1.5rem'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'var(--primary-medium)';
@@ -245,8 +197,75 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
           <div style={{
             height: '1px',
             background: '#e9ecef',
-            margin: '1rem 0'
+            margin: '0 0 1rem 0'
           }} />
+
+          {/* Secondary Navigation - Bottom */}
+          <Link
+            href="/safety-guide"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.95rem',
+              transition: 'background 0.2s',
+              marginBottom: '0.25rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.1rem' }}>❄️</span>
+            <span style={{ fontWeight: 500 }}>Safety Guide</span>
+          </Link>
+
+          <Link
+            href="/about"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.95rem',
+              transition: 'background 0.2s',
+              marginBottom: '0.25rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+            <span style={{ fontWeight: 500 }}>About</span>
+          </Link>
+
+          <Link
+            href="/contact"
+            onClick={onClose}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.95rem',
+              transition: 'background 0.2s',
+              marginBottom: '1rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ fontSize: '1.1rem' }}>📧</span>
+            <span style={{ fontWeight: 500 }}>Contact</span>
+          </Link>
 
           <a
             href="https://github.com/Austtiin"
@@ -256,7 +275,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
-              padding: '1rem',
+              padding: '0.75rem 1rem',
               borderRadius: '0.5rem',
               textDecoration: 'none',
               color: 'var(--text-secondary)',

@@ -414,7 +414,8 @@ export default function NearMePage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
-                  opacity: isLoadingLocation ? 0.8 : 1
+                  opacity: isLoadingLocation ? 0.8 : 1,
+                  margin: '0 auto'
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoadingLocation) {

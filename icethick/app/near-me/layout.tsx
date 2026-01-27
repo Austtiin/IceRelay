@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     "ice safety near me"
   ],
   alternates: {
-    canonical: "https://icerelay.com/near-me/",
+    canonical: "https://www.icerelay.app/near-me/",
   },
 };
 

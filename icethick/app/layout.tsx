@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     title: "Ice Relay | Ice Thickness Near Me in Minnesota & Midwest Lakes",
     description:
       "Crowdsourced ice thickness near you for Minnesota and Midwest lakes. View recent ice reports, map views, and safety-focused ice conditions.",
-    url: "https://icerelay.com/",
+    url: "https://www.icerelay.app/",
     siteName: "Ice Relay",
     locale: "en_US",
     type: "website"

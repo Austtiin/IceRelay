@@ -45,6 +45,19 @@ export default function MapPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobile, sidebarOpen]);
+
   // Handle client-side mounting
   useEffect(() => {
     setIsMounted(true);
@@ -216,14 +229,11 @@ export default function MapPage() {
             const targetCenter: [number, number] = [lng, lat];
             
             if (isMobile) {
-              // Pan map so marker is visible above the mobile sidebar (which is 40% height)
-              // Calculate offset: move center up by about 20% of viewport
-              const point = map.current.project([lng, lat]);
-              point.y -= window.innerHeight * 0.15; // Move up 15% of screen height
-              const adjustedCenter = map.current.unproject(point);
+              // Use padding to keep marker visible above the mobile sidebar (which is 40% height)
               map.current.flyTo({
-                center: [adjustedCenter.lng, adjustedCenter.lat],
+                center: targetCenter,
                 zoom: 10,
+                padding: { bottom: window.innerHeight * 0.45, top: 50, left: 20, right: 20 },
                 duration: 1000
               });
             } else {
@@ -260,13 +270,11 @@ export default function MapPage() {
             const targetZoom = Math.max(currentZoom, 10);
             
             if (isMobile) {
-              // Pan map so marker is visible above the mobile sidebar
-              const point = map.current.project([lng, lat]);
-              point.y -= window.innerHeight * 0.15; // Move up 15% of screen height
-              const adjustedCenter = map.current.unproject(point);
+              // Use padding to keep marker visible above the mobile sidebar
               map.current.flyTo({
-                center: [adjustedCenter.lng, adjustedCenter.lat],
+                center: [lng, lat],
                 zoom: targetZoom,
+                padding: { bottom: window.innerHeight * 0.45, top: 50, left: 20, right: 20 },
                 duration: 800
               });
             } else {
@@ -302,6 +310,7 @@ export default function MapPage() {
   const getTimeAgo = (createdAt: string): string => {
     if (!createdAt) return 'Just now';
     
+    // Parse date (assuming UTC from database)
     const date = new Date(createdAt);
     const now = new Date();
     
@@ -310,10 +319,9 @@ export default function MapPage() {
       return 'Just now';
     }
     
-    // Calculate time difference (positive = past, negative = future)
+    // Calculate time difference
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = diffMs / 60000;
-    const diffHours = diffMins / 60;
+    const diffHours = diffMs / 3600000;
     const diffDays = diffHours / 24;
     
     // Handle future dates
@@ -340,7 +348,8 @@ export default function MapPage() {
     if (!map.current) return '';
     const center = map.current.getCenter();
     const distance = getDistance(center.lat, center.lng, lat, lng);
-    return distance < 1 ? `${(distance * 1000).toFixed(0)}m` : `${distance.toFixed(1)}km`;
+    if (distance === 0) return '';
+    return distance < 1 ? `${(distance * 1000).toFixed(0)}m away` : `${distance.toFixed(1)}km away`;
   };
 
   // Haversine distance calculation
