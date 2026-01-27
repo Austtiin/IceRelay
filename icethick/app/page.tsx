@@ -390,14 +390,18 @@ export default function Home() {
               </Button>
             </div>
           </div>
+          
+          {/* Wave transition at bottom of hero */}
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2
+          }}>
+            <WaveDivider color="white" flip={true} />
+          </div>
         </section>
-
-        {/* Ice-themed divider */}
-        <div style={{
-          height: '4px',
-          background: 'linear-gradient(to right, transparent 0%, rgba(189, 213, 234, 0.5) 20%, var(--primary-medium) 50%, rgba(189, 213, 234, 0.5) 80%, transparent 100%)',
-          marginTop: '-2px'
-        }} />
 
         {/* User-Submitted Disclaimer Banner */}
         <section style={{ 

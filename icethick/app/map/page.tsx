@@ -170,6 +170,19 @@ export default function MapPage() {
     };
   }, [isMounted, hasMapboxToken]);
 
+  // Check for lake parameter from near-me search and auto-open sidebar
+  useEffect(() => {
+    if (!isMounted || !map.current) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const lakeName = params.get('lake');
+    
+    // If coming from lake search, ensure sidebar is open and wait for reports to load
+    if (lakeName && currentZoom >= 6) {
+      setSidebarOpen(true);
+    }
+  }, [isMounted, reports, currentZoom]);
+
   // Fetch reports within map bounds
   const fetchReportsInBounds = async (bbox: {
     north: number;
@@ -405,7 +418,14 @@ export default function MapPage() {
           </Box>
         </div>
       ) : (
-      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ 
+        flex: 1, 
+        position: 'relative', 
+        display: 'flex', 
+        flexDirection: 'column',
+        height: isMobile ? 'calc(100vh - 120px)' : 'auto',
+        overflow: 'hidden'
+      }}>
         {/* User-Submitted Disclaimer Banner */}
         <div style={{
           background: 'rgba(254, 95, 85, 0.95)',
@@ -426,7 +446,12 @@ export default function MapPage() {
         </div>
 
         {/* Map Container */}
-        <div ref={mapContainer} style={{ flex: 1 }} />
+        <div ref={mapContainer} style={{ 
+          flex: 1,
+          width: '100%',
+          height: '100%',
+          position: 'relative'
+        }} />
 
         {/* Desktop Sidebar / Mobile Bottom Sheet */}
         {sidebarOpen && currentZoom >= 6 && (
