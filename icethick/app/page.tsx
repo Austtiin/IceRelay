@@ -50,6 +50,16 @@ export default function Home() {
     fetchReports();
   }, []);
 
+  // Check for newReport URL parameter to auto-open form
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('newReport') === 'true') {
+      setIsSubmitFormOpen(true);
+      // Clean up URL without page reload
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
   const fetchReports = async () => {
     try {
       setIsLoadingReports(true);

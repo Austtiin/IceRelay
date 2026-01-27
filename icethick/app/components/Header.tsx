@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -10,6 +11,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
+  const router = useRouter();
   const [locationEnabled, setLocationEnabled] = useState(false);
 
   return (
@@ -84,7 +86,9 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             📍 View Ice Near Me
           </Link>
           <button
-            onClick={onNewReport}
+            onClick={() => {
+              router.push('/?newReport=true');
+            }}
             style={{
               background: 'white',
               color: 'var(--primary-dark)',

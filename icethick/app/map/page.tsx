@@ -44,6 +44,7 @@ export default function MapPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const isAnimating = useRef(false);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -115,6 +116,12 @@ export default function MapPage() {
     // Handle map move
     map.current.on('moveend', () => {
       if (!map.current) return;
+      
+      // Skip updates during flyTo animations to prevent flashing
+      if (isAnimating.current) {
+        isAnimating.current = false;
+        return;
+      }
       
       const bounds = map.current.getBounds();
       if (!bounds) return;
@@ -230,6 +237,7 @@ export default function MapPage() {
             
             if (isMobile) {
               // Use padding to keep marker visible above the mobile sidebar (which is 40% height)
+              isAnimating.current = true;
               map.current.flyTo({
                 center: targetCenter,
                 zoom: 10,
@@ -237,6 +245,7 @@ export default function MapPage() {
                 duration: 1000
               });
             } else {
+              isAnimating.current = true;
               map.current.flyTo({
                 center: targetCenter,
                 zoom: 10,
@@ -271,6 +280,7 @@ export default function MapPage() {
             
             if (isMobile) {
               // Use padding to keep marker visible above the mobile sidebar
+              isAnimating.current = true;
               map.current.flyTo({
                 center: [lng, lat],
                 zoom: targetZoom,
@@ -278,6 +288,7 @@ export default function MapPage() {
                 duration: 800
               });
             } else {
+              isAnimating.current = true;
               map.current.flyTo({
                 center: [lng, lat],
                 zoom: targetZoom,
