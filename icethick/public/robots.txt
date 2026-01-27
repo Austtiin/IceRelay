@@ -1,12 +1,5 @@
-# Ice Relay - Robots.txt
-# https://icerelay.com/robots.txt
-
 User-agent: *
 Allow: /
 Disallow: /api/
 
-# Sitemap location
 Sitemap: https://icerelay.com/sitemap.xml
-
-# Crawl-delay (optional, can help with rate limiting)
-Crawl-delay: 1

@@ -17,6 +17,7 @@ export default function NearMePage() {
   const [lakeSuggestions, setLakeSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
 
   const handleLakeSearchChange = async (value: string) => {
@@ -50,7 +51,8 @@ export default function NearMePage() {
     setShowSuggestions(false);
 
     if (lat && lng) {
-      window.location.href = `/map?lake=${encodeURIComponent(lakeName)}&lat=${lat}&lng=${lng}`;
+      // Auto-zoom to the lake location with zoom level 12
+      window.location.href = `/map?lake=${encodeURIComponent(lakeName)}&lat=${lat}&lng=${lng}&zoom=12`;
     }
   };
 
@@ -168,6 +170,12 @@ export default function NearMePage() {
                   type="text"
                   value={lakeSearch}
                   onChange={(e) => handleLakeSearchChange(e.target.value)}
+                  onFocus={(e) => {
+                    // Scroll search box into view on mobile
+                    setTimeout(() => {
+                      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                  }}
                   placeholder="Start typing to search for a lake..."
                   style={{
                     width: '100%',
@@ -179,17 +187,7 @@ export default function NearMePage() {
                   }}
                 />
 
-                {isSearching && (
-                  <div style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
-                    fontStyle: 'italic'
-                  }}>
-                    Searching lakes...
-                  </div>
-                )}
-
-                {showSuggestions && lakeSuggestions.length > 0 && (
+                {(showSuggestions || isSearching) && lakeSearch.trim().length >= 2 && (
                   <div style={{
                     position: 'absolute',
                     top: 'calc(100% + 4px)',
@@ -199,13 +197,48 @@ export default function NearMePage() {
                     border: '2px solid var(--primary-light)',
                     borderRadius: '0.75rem',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    maxHeight: '240px',
+                    maxHeight: '300px',
                     overflowY: 'auto',
                     zIndex: 10
                   }}>
-                    {lakeSuggestions.map((suggestion, idx) => {
+                    {isSearching && (
+                      <div style={{
+                        padding: '1rem',
+                        textAlign: 'center',
+                        fontSize: '0.875rem',
+                        color: 'var(--text-secondary)',
+                        fontStyle: 'italic'
+                      }}>
+                        Searching lakes...
+                      </div>
+                    )}
+
+                    {!isSearching && lakeSuggestions.length > 0 && lakeSuggestions.map((suggestion, idx) => {
                       const lakeName = suggestion.LakeName || suggestion.lakeName || 'Unknown Lake';
                       const reportCount = suggestion.ReportCount || suggestion.reportCount || 0;
+                      const lastReportDate = suggestion.LastReportDate || suggestion.lastReportDate;
+                      const distanceKm = suggestion.DistanceKm || suggestion.distanceKm;
+
+                      // Format last report date
+                      let lastReportText = '';
+                      if (lastReportDate) {
+                        const date = new Date(lastReportDate);
+                        const now = new Date();
+                        const diffMs = now.getTime() - date.getTime();
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays === 0) {
+                          lastReportText = 'Today';
+                        } else if (diffDays === 1) {
+                          lastReportText = 'Yesterday';
+                        } else if (diffDays < 7) {
+                          lastReportText = `${diffDays} days ago`;
+                        } else if (diffDays < 30) {
+                          lastReportText = `${Math.floor(diffDays / 7)} weeks ago`;
+                        } else {
+                          lastReportText = date.toLocaleDateString();
+                        }
+                      }
 
                       return (
                         <button
@@ -214,30 +247,50 @@ export default function NearMePage() {
                           onClick={() => handleLakeSelect(suggestion)}
                           style={{
                             width: '100%',
-                            padding: '0.75rem 1rem',
+                            padding: '0.875rem 1rem',
                             textAlign: 'left',
                             border: 'none',
-                            borderBottom: idx < lakeSuggestions.length - 1 ? '1px solid var(--primary-light)' : 'none',
+                            borderBottom: idx < lakeSuggestions.length - 1 ? '1px solid #e0e4ea' : 'none',
                             background: 'white',
                             cursor: 'pointer',
                             transition: 'background 0.2s'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--primary-light)';
+                            e.currentTarget.style.background = '#f8f9fa';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'white';
                           }}
                         >
-                          <div style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--primary-dark)', fontSize: '1rem' }}>
                             {lakeName}
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                            {reportCount} report{reportCount !== 1 ? 's' : ''}
+                          <div style={{ 
+                            fontSize: '0.8rem', 
+                            color: 'var(--text-secondary)', 
+                            marginTop: '0.25rem',
+                            display: 'flex',
+                            gap: '0.75rem',
+                            flexWrap: 'wrap'
+                          }}>
+                            <span>📊 {reportCount} report{reportCount !== 1 ? 's' : ''}</span>
+                            {lastReportText && <span>📅 Last: {lastReportText}</span>}
+                            {distanceKm !== undefined && <span>📍 {distanceKm.toFixed(1)} km away</span>}
                           </div>
                         </button>
                       );
                     })}
+
+                    {!isSearching && lakeSuggestions.length === 0 && (
+                      <div style={{
+                        padding: '1rem',
+                        textAlign: 'center',
+                        fontSize: '0.875rem',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        No lakes found. Try a different search term.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -321,6 +374,7 @@ export default function NearMePage() {
               <button
                 onClick={() => {
                   if (navigator.geolocation) {
+                    setIsLoadingLocation(true);
                     navigator.geolocation.getCurrentPosition(
                       (position) => {
                         console.log('Location:', position.coords);
@@ -329,6 +383,7 @@ export default function NearMePage() {
                         window.location.href = `/map?lat=${latitude}&lng=${longitude}&zoom=11`;
                       },
                       (error) => {
+                        setIsLoadingLocation(false);
                         let errorMessage = 'Unable to get your location.';
                         if (error.code === error.PERMISSION_DENIED) {
                           errorMessage = 'Location access was denied. Please go into your browser settings and enable location access. We require location data to prevent spam and ensure reports are from actual lake locations.';
@@ -344,28 +399,54 @@ export default function NearMePage() {
                     setNotification({ message: 'Geolocation is not supported by your browser.', type: 'error' });
                   }
                 }}
+                disabled={isLoadingLocation}
                 style={{
-                  background: 'var(--primary-dark)',
+                  background: isLoadingLocation ? 'var(--primary-medium)' : 'var(--primary-dark)',
                   color: 'white',
                   border: 'none',
                   padding: '1rem 2rem',
                   borderRadius: '0.75rem',
                   fontSize: '1.0625rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  cursor: isLoadingLocation ? 'wait' : 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  opacity: isLoadingLocation ? 0.8 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--primary-medium)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  if (!isLoadingLocation) {
+                    e.currentTarget.style.background = 'var(--primary-medium)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--primary-dark)';
-                  e.currentTarget.style.transform = 'translateY(0)';
+                  if (!isLoadingLocation) {
+                    e.currentTarget.style.background = 'var(--primary-dark)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
                 }}>
-                Enable Location
+                {isLoadingLocation && (
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    border: '3px solid rgba(255, 255, 255, 0.3)',
+                    borderTop: '3px solid white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }} />
+                )}
+                {isLoadingLocation ? 'Getting Location...' : 'Enable Location'}
               </button>
             </div>
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
           </div>
         </section>
       </main>

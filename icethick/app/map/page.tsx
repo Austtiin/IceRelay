@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import Header from '../components/Header';
@@ -30,6 +31,7 @@ interface Report {
 }
 
 export default function MapPage() {
+  const router = useRouter();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -209,11 +211,28 @@ export default function MapPage() {
         // Add click handler for heat dots
         el.addEventListener('click', () => {
           if (map.current) {
-            map.current.flyTo({
-              center: [lng, lat],
-              zoom: 10,
-              duration: 1000
-            });
+            // On mobile, offset the center to account for sidebar
+            const isMobile = window.innerWidth < 768;
+            const targetCenter: [number, number] = [lng, lat];
+            
+            if (isMobile) {
+              // Pan map so marker is visible above the mobile sidebar (which is 40% height)
+              // Calculate offset: move center up by about 20% of viewport
+              const point = map.current.project([lng, lat]);
+              point.y -= window.innerHeight * 0.15; // Move up 15% of screen height
+              const adjustedCenter = map.current.unproject(point);
+              map.current.flyTo({
+                center: [adjustedCenter.lng, adjustedCenter.lat],
+                zoom: 10,
+                duration: 1000
+              });
+            } else {
+              map.current.flyTo({
+                center: targetCenter,
+                zoom: 10,
+                duration: 1000
+              });
+            }
             setSelectedReport(report);
             setSidebarOpen(true);
           }
@@ -235,11 +254,28 @@ export default function MapPage() {
           setSelectedReport(report);
           setSidebarOpen(true);
           if (map.current) {
-            map.current.flyTo({
-              center: [lng, lat],
-              zoom: Math.max(map.current.getZoom(), 10),
-              duration: 800
-            });
+            // On mobile, offset the center to account for sidebar
+            const isMobile = window.innerWidth < 768;
+            const currentZoom = map.current.getZoom();
+            const targetZoom = Math.max(currentZoom, 10);
+            
+            if (isMobile) {
+              // Pan map so marker is visible above the mobile sidebar
+              const point = map.current.project([lng, lat]);
+              point.y -= window.innerHeight * 0.15; // Move up 15% of screen height
+              const adjustedCenter = map.current.unproject(point);
+              map.current.flyTo({
+                center: [adjustedCenter.lng, adjustedCenter.lat],
+                zoom: targetZoom,
+                duration: 800
+              });
+            } else {
+              map.current.flyTo({
+                center: [lng, lat],
+                zoom: targetZoom,
+                duration: 800
+              });
+            }
           }
         });
 
@@ -323,12 +359,12 @@ export default function MapPage() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header 
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
+        onNewReport={() => router.push('/')}
       />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
+        onNewReport={() => router.push('/')}
       />
 
       {!isMounted ? (

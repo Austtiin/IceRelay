@@ -201,6 +201,14 @@ export default function Home() {
       // Track report submission in analytics
       trackReportSubmission(data.lake || 'Unknown', data.thickness);
       
+      // Play success sound
+      try {
+        const audio = new Audio('/ding-101377.mp3');
+        audio.play().catch(err => console.log('Audio play failed:', err));
+      } catch (err) {
+        console.log('Audio creation failed:', err);
+      }
+      
       // Success notification - set BEFORE closing form
       setNotification({
         message: 'Success! Your ice report has been submitted and will help keep the community safe. Thank you!',

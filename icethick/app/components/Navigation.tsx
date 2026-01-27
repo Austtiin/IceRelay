@@ -23,7 +23,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
           right: 0,
           bottom: 0,
           background: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 100,
+          zIndex: 1000,
           animation: 'fadeIn 0.2s ease-out'
         }}
       />
@@ -38,7 +38,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
         maxWidth: '85vw',
         background: 'white',
         boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.15)',
-        zIndex: 101,
+        zIndex: 1001,
         display: 'flex',
         flexDirection: 'column',
         animation: 'slideInRight 0.3s ease-out'

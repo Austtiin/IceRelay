@@ -111,8 +111,8 @@ const sanitizeText = (text: string, fieldName: string = 'text'): { isValid: bool
     }
   }
   
-  // Remove excessive spaces
-  cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+  // Remove excessive spaces (but don't trim yet - allow typing with spaces)
+  cleaned = cleaned.replace(/\s{2,}/g, ' ');
   
   return { isValid: true, cleanedText: cleaned };
 };
@@ -316,10 +316,11 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
     setIsSubmitting(true);
 
     try {
-      // Normalize lake name if provided
+      // Normalize lake name and trim location before submission
       const normalizedData = {
         ...formData,
-        lake: formData.lake ? normalizeLakeName(formData.lake) : ''
+        lake: formData.lake ? normalizeLakeName(formData.lake) : '',
+        location: formData.location.trim()
       };
       await onSubmit(normalizedData);
       // Note: Form will be closed by parent on success

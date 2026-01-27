@@ -30,7 +30,7 @@ export default function SafetyGuidePage() {
         <div className="container" style={pageStyles.contentContainer}>
           {/* Hero Section */}
           <div style={{
-            background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)',
+            background: 'linear-gradient(135deg, var(--primary-medium) 0%, var(--primary-dark) 100%)',
             color: 'white',
             padding: '3rem 2rem',
             borderRadius: '1rem',
@@ -78,7 +78,7 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary)',
+                borderBottom: '3px solid var(--primary-medium)',
                 paddingBottom: '0.5rem'
               }}>
                 Ice Thickness Guidelines
@@ -183,7 +183,7 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary)',
+                borderBottom: '3px solid var(--primary-medium)',
                 paddingBottom: '0.5rem'
               }}>
                 Understanding Ice Types
@@ -246,7 +246,7 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary)',
+                borderBottom: '3px solid var(--primary-medium)',
                 paddingBottom: '0.5rem'
               }}>
                 ⚠️ Danger Signs - Stay Away
@@ -294,7 +294,7 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary)',
+                borderBottom: '3px solid var(--primary-medium)',
                 paddingBottom: '0.5rem'
               }}>
                 ✅ Safety Best Practices
@@ -374,7 +374,7 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary)',
+                borderBottom: '3px solid var(--primary-medium)',
                 paddingBottom: '0.5rem'
               }}>
                 🆘 If You Fall Through Ice
@@ -431,7 +431,7 @@ export default function SafetyGuidePage() {
                 fontWeight: 700,
                 marginBottom: '1.5rem',
                 color: 'var(--primary-dark)',
-                borderBottom: '3px solid var(--primary)',
+                borderBottom: '3px solid var(--primary-medium)',
                 paddingBottom: '0.5rem'
               }}>
                 🌡️ Weather Factors That Weaken Ice
@@ -457,7 +457,7 @@ export default function SafetyGuidePage() {
             {/* Final Reminder */}
             <section>
               <div style={{
-                background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%)',
+                background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%)',
                 color: 'white',
                 padding: '3rem 2rem',
                 borderRadius: '1rem',
