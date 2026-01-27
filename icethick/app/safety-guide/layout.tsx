@@ -19,7 +19,14 @@ export const metadata: Metadata = {
     "winter ice safety",
     "lake ice safety",
     "clear ice vs white ice",
-    "ice safety equipment"
+    "ice safety equipment",
+    "minnesota ice safety",
+    "ice thickness mn",
+    "ice thickness wi",
+    "ice thickness sd",
+    "wisconsin ice safety",
+    "south dakota ice safety",
+    "ice thickness reports"
   ],
   alternates: {
     canonical: "https://www.icerelay.app/safety-guide/",
