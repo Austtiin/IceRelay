@@ -2,7 +2,7 @@
 
 **Community-driven ice thickness reporting for Minnesota lakes.** Share real-time ice conditions with fellow ice enthusiasts and help keep our community safe.
 
-🌐 **Live Site:** [icerelay.com](https://icerelay.com)  
+🌐 **Live Site:** [icerelay.com](https://icerelay.app)  
 📍 **Focused on:** Minnesota lakes and ice fishing spots
 
 ---
