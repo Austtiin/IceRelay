@@ -12,8 +12,16 @@ export const metadata: Metadata = {
     "ice fishing safety",
     "ice fishing ice thickness",
     "lake ice reports near me",
+    "ice thickness reports",
+    "community reported ice thickness",
     "minnesota ice conditions",
-    "ice safety near me"
+    "ice thickness mn",
+    "ice thickness wi",
+    "ice thickness sd",
+    "wisconsin ice conditions",
+    "south dakota ice conditions",
+    "ice safety near me",
+    "ice thickness chart"
   ],
   alternates: {
     canonical: "https://www.icerelay.app/near-me/",

@@ -9,10 +9,17 @@ export const metadata: Metadata = {
     "ice relay about",
     "ice thickness reporting",
     "community ice reports",
+    "community reported ice thickness",
     "crowdsourced ice conditions",
     "lake ice safety community",
     "ice fishing community",
-    "minnesota ice reports"
+    "minnesota ice reports",
+    "ice thickness reports",
+    "ice thickness mn",
+    "ice thickness wi",
+    "ice thickness sd",
+    "wisconsin ice reports",
+    "south dakota ice reports"
   ],
   alternates: {
     canonical: "https://www.icerelay.app/about/",

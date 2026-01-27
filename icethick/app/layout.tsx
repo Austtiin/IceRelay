@@ -21,6 +21,15 @@ export const metadata: Metadata = {
     "Check live, community-reported ice thickness near you across Minnesota and the Upper Midwest. See recent lake ice reports to stay safe for ice fishing, skating, and winter travel.",
   keywords: [
     "ice thickness near me",
+    "ice thickness mn",
+    "ice thickness minnesota",
+    "ice thickness wi",
+    "ice thickness wisconsin",
+    "ice thickness sd",
+    "ice thickness south dakota",
+    "ice thickness chart",
+    "ice thickness reports",
+    "community reported ice thickness",
     "safe ice thickness",
     "ice fishing safety tips",
     "ice fishing ice thickness",
@@ -37,7 +46,12 @@ export const metadata: Metadata = {
     "winter lake conditions",
     "how thick should ice be",
     "ice thickness for fishing",
-    "ice relay"
+    "ice relay",
+    "mn ice reports",
+    "wi ice reports",
+    "sd ice reports",
+    "ice thickness map",
+    "real time ice conditions"
   ],
   robots: {
     index: true,
