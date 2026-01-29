@@ -40,7 +40,19 @@ public class ReportsFunction
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
 
-            // Get the 6 most recent reports that haven't expired
+            // Debug: Check total reports in database
+            var debugCountSql = "SELECT COUNT(*) FROM IceReports;";
+            await using var debugCountCommand = new SqlCommand(debugCountSql, connection);
+            var totalReports = (int)await debugCountCommand.ExecuteScalarAsync();
+            _logger.LogInformation($"[DEBUG] Total reports in database: {totalReports}");
+
+            // Debug: Check reports within 180 days
+            var debug180Sql = "SELECT COUNT(*) FROM IceReports WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME());";
+            await using var debug180Command = new SqlCommand(debug180Sql, connection);
+            var recent180 = (int)await debug180Command.ExecuteScalarAsync();
+            _logger.LogInformation($"[DEBUG] Reports within last 180 days: {recent180}");
+
+            // Get the 6 most recent reports from the last 180 days
             var sql = @"
                 SELECT TOP 6
                     ReportId,
@@ -53,7 +65,7 @@ public class ReportsFunction
                     Notes,
                     CreatedAt
                 FROM IceReports
-                WHERE ExpiresAt > SYSUTCDATETIME()
+                WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
                 ORDER BY CreatedAt DESC;";
 
             await using var command = new SqlCommand(sql, connection);
@@ -131,8 +143,6 @@ public class ReportsFunction
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            // Cache recent reports for 1 hour; other APIs remain uncached
-            response.Headers.Add("Cache-Control", "public, max-age=3600");
             await response.WriteAsJsonAsync(reports);
             return response;
         }
@@ -181,7 +191,7 @@ public class ReportsFunction
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
 
-            // Get reports within bounds, limit to 100
+            // Get reports within bounds from the last 180 days, limit to 100
             var sql = @"
                 SELECT TOP 100
                     ReportId,
@@ -194,7 +204,7 @@ public class ReportsFunction
                     Notes,
                     CreatedAt
                 FROM IceReports
-                WHERE ExpiresAt > SYSUTCDATETIME()
+                WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
                   AND Latitude BETWEEN @south AND @north
                   AND Longitude BETWEEN @west AND @east
                 ORDER BY CreatedAt DESC;";
@@ -429,7 +439,7 @@ public class ReportsFunction
                     @MeasurementType,
                     @SurfaceType,
                     @Notes,
-                    DATEADD(HOUR, 24, SYSUTCDATETIME()),
+                    DATEADD(DAY, 180, SYSUTCDATETIME()),
                     @SessionHash
                 );";
 
@@ -668,7 +678,7 @@ public class ReportsFunction
                 FROM IceReports
                 WHERE LakeName IS NOT NULL 
                     AND LakeName != ''
-                    AND ExpiresAt > SYSUTCDATETIME()
+                    AND CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
                     AND Latitude BETWEEN @Lat - 0.005 AND @Lat + 0.005
                     AND Longitude BETWEEN @Lng - 0.005 AND @Lng + 0.005
                 GROUP BY LakeName
@@ -786,7 +796,7 @@ public class ReportsFunction
                 WHERE LakeName IS NOT NULL 
                     AND LakeName != ''
                     AND LakeName LIKE @Query
-                    AND ExpiresAt > SYSUTCDATETIME()
+                    AND CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
                 GROUP BY LakeName
                 ORDER BY ReportCount DESC, MAX(CreatedAt) DESC;";
 

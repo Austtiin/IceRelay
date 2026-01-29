@@ -4,6 +4,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
+// Debug: Log the API URL being used
+console.log('[API Config] API_BASE_URL:', API_BASE_URL);
+console.log('[API Config] process.env.NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+
 // Helper function to wait
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
