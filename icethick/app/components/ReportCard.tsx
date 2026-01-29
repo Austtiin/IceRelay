@@ -293,6 +293,42 @@ export default function ReportCard({
       }}>
         <strong>{safety.activity}</strong> - {safety.status}
       </div>
+
+      {/* Flag Button */}
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          alert('Flag feature coming soon! This will allow you to report incorrect information.');
+        }}
+        style={{
+          marginTop: '0.75rem',
+          padding: '0.5rem',
+          background: 'transparent',
+          border: '1px dashed #ccc',
+          borderRadius: '0.25rem',
+          fontSize: '0.75rem',
+          color: '#666',
+          cursor: 'pointer',
+          width: '100%',
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.25rem'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#fff';
+          e.currentTarget.style.borderColor = '#999';
+          e.currentTarget.style.color = '#333';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = '#ccc';
+          e.currentTarget.style.color = '#666';
+        }}
+      >
+        🚩 Is this report incorrect?
+      </button>
     </div>
   );
 }

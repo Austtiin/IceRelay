@@ -117,11 +117,9 @@ export default function MapPage() {
     map.current.on('moveend', () => {
       if (!map.current) return;
       
-      // Skip updates during flyTo animations to prevent flashing
-      if (isAnimating.current) {
-        isAnimating.current = false;
-        return;
-      }
+      // Reset animation flag
+      const wasAnimating = isAnimating.current;
+      isAnimating.current = false;
       
       const bounds = map.current.getBounds();
       if (!bounds) return;
@@ -138,7 +136,7 @@ export default function MapPage() {
       });
       window.history.replaceState({}, '', `?${params}`);
       
-      // Fetch reports in bounds
+      // Always fetch reports in bounds (even after flyTo animations)
       fetchReportsInBounds({
         north: bounds.getNorth(),
         south: bounds.getSouth(),
@@ -373,7 +371,8 @@ export default function MapPage() {
     const center = map.current.getCenter();
     const distance = getDistance(center.lat, center.lng, lat, lng);
     if (distance === 0) return '';
-    return distance < 1 ? `${(distance * 1000).toFixed(0)}m away` : `${distance.toFixed(1)}km away`;
+    const miles = distance * 0.621371;
+    return miles < 1 ? `${(miles * 5280).toFixed(0)}ft away` : `${miles.toFixed(1)}mi away`;
   };
 
   // Haversine distance calculation
@@ -565,6 +564,9 @@ export default function MapPage() {
                     <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary-dark)' }}>
                       {selectedReport.Thickness || selectedReport.thickness}"
                     </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
+                      User-submitted measurement
+                    </Typography>
                   </Box>
                   
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -578,7 +580,7 @@ export default function MapPage() {
                     </Box>
                     <Box>
                       <Typography variant="caption" sx={{ color: 'var(--text-secondary)', display: 'block' }}>
-                        Reported
+                        Last Reported
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 600 }}>
                         {getTimeAgo(selectedReport.CreatedAt || selectedReport.createdAt || new Date().toISOString())}
@@ -601,9 +603,31 @@ export default function MapPage() {
                     fullWidth
                     variant="outlined"
                     onClick={() => {
+                      alert('Flag feature coming soon! This will allow you to report incorrect information.');
+                    }}
+                    sx={{ 
+                      marginTop: '16px',
+                      marginBottom: '8px',
+                      borderStyle: 'dashed',
+                      color: '#666',
+                      borderColor: '#ccc',
+                      '&:hover': {
+                        borderColor: '#999',
+                        backgroundColor: '#f5f5f5'
+                      }
+                    }}
+                    startIcon={<span>🚩</span>}
+                  >
+                    Is this report incorrect?
+                  </Button>
+
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => {
                       setSelectedReport(null);
                     }}
-                    sx={{ marginTop: '16px' }}
+                    sx={{ marginTop: '8px' }}
                   >
                     View All Reports
                   </Button>
@@ -686,8 +710,36 @@ export default function MapPage() {
                       </div>
                     </div>
                     <Typography variant="caption" sx={{ color: 'var(--text-secondary)', marginTop: '8px', display: 'block' }}>
-                      {getTimeAgo(createdAt)}
+                      Last reported {getTimeAgo(createdAt)}
                     </Typography>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        alert('Flag feature coming soon! This will allow you to report incorrect information.');
+                      }}
+                      style={{
+                        marginTop: '8px',
+                        padding: '4px 8px',
+                        background: 'transparent',
+                        border: '1px dashed #ccc',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        color: '#666',
+                        cursor: 'pointer',
+                        width: '100%',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fff';
+                        e.currentTarget.style.borderColor = '#999';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.borderColor = '#ccc';
+                      }}
+                    >
+                      🚩 Flag
+                    </button>
                   </div>
                   );
                 })

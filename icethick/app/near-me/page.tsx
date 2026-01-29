@@ -275,7 +275,7 @@ export default function NearMePage() {
                           }}>
                             <span>📊 {reportCount} report{reportCount !== 1 ? 's' : ''}</span>
                             {lastReportText && <span>📅 Last: {lastReportText}</span>}
-                            {distanceKm !== undefined && <span>📍 {distanceKm.toFixed(1)} km away</span>}
+                            {distanceKm !== undefined && <span>📍 {(distanceKm * 0.621371).toFixed(1)} mi away</span>}
                           </div>
                         </button>
                       );
