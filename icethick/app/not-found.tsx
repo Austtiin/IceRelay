@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Header from "./components/Header";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
@@ -12,12 +13,10 @@ export default function NotFoundPage() {
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={{ flex: 1, padding: "4rem 0", background: "#fafbfc" }}>
@@ -39,7 +38,7 @@ export default function NotFoundPage() {
               marginBottom: "2rem",
             }}
           >
-            We couldn't find that page. Try heading back to the main ice
+            We couldn&apos;t find that page. Try heading back to the main ice
             report views below.
           </p>
 
@@ -52,7 +51,7 @@ export default function NotFoundPage() {
               marginBottom: "2.5rem",
             }}
           >
-            <a
+            <Link
               href="/"
               style={{
                 padding: "0.8rem 1.6rem",
@@ -64,9 +63,9 @@ export default function NotFoundPage() {
               }}
             >
               Back to Home
-            </a>
-            <a
-              href="/near-me"
+            </Link>
+            <Link
+              href="/near-me/"
               style={{
                 padding: "0.8rem 1.6rem",
                 borderRadius: "0.75rem",
@@ -78,9 +77,9 @@ export default function NotFoundPage() {
               }}
             >
               View Ice Near Me
-            </a>
-            <a
-              href="/map"
+            </Link>
+            <Link
+              href="/map/"
               style={{
                 padding: "0.8rem 1.6rem",
                 borderRadius: "0.75rem",
@@ -92,7 +91,7 @@ export default function NotFoundPage() {
               }}
             >
               Open Map View
-            </a>
+            </Link>
           </div>
 
           <p

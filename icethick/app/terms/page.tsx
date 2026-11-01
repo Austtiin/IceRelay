@@ -19,12 +19,10 @@ export default function TermsPage() {
     <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>
@@ -80,7 +78,7 @@ export default function TermsPage() {
               marginBottom: '0.75rem'
             }}>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', margin: 0 }}>
-                <strong>⚠️ All reports are user-submitted and unverified.</strong> Do not rely solely on Ice Relay for safety decisions.
+                <strong> All reports are user-submitted and unverified.</strong> Do not rely solely on Ice Relay for safety decisions.
               </p>
             </div>
             <ul style={{ marginLeft: '1.5rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>

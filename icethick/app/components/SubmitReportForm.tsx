@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { trackLocationUsage, trackLakeSearch } from '../lib/analytics';
+import type { LakeSuggestion } from '../../lib/api';
 
 interface SubmitReportFormProps {
   onClose: () => void;
@@ -20,21 +21,6 @@ export interface ReportData {
   useGPS: boolean;
   latitude: number;
   longitude: number;
-}
-
-interface LakeSuggestion {
-  lakeName?: string;
-  LakeName?: string;  // API returns PascalCase
-  latitude: number;
-  Latitude?: number;  // API returns PascalCase
-  longitude: number;
-  Longitude?: number;  // API returns PascalCase
-  reportCount: number;
-  ReportCount?: number;  // API returns PascalCase
-  distanceKm?: number;
-  DistanceKm?: number;  // API returns PascalCase
-  lastReportDate?: string;
-  LastReportDate?: string;  // API returns PascalCase
 }
 
 // Text sanitization utility
@@ -127,24 +113,6 @@ const normalizeLakeName = (name: string): string => {
     .join(' ');
 };
 
-const MINNESOTA_LAKES = [
-  'Lake Minnetonka',
-  'White Bear Lake',
-  'Lake Calhoun (Bde Maka Ska)',
-  'Lake Harriet',
-  'Lake of the Isles',
-  'Lake Nokomis',
-  'Cedar Lake',
-  'Medicine Lake',
-  'Lake Phalen',
-  'Como Lake',
-  'Bald Eagle Lake',
-  'Forest Lake',
-  'Prior Lake',
-  'Lake Elmo',
-  'Square Lake'
-];
-
 export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportFormProps) {
   const [formData, setFormData] = useState<ReportData>({
     lake: '',
@@ -171,8 +139,11 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
   const [lakeSuggestions, setLakeSuggestions] = useState<LakeSuggestion[]>([]);
   const [showLakeSuggestions, setShowLakeSuggestions] = useState<boolean>(false);
   const [isSearchingLakes, setIsSearchingLakes] = useState<boolean>(false);
+  const [lakeSearchError, setLakeSearchError] = useState(false);
+  const [lakeDetectionError, setLakeDetectionError] = useState(false);
   const [isDetectingLake, setIsDetectingLake] = useState<boolean>(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const lakeSearchRequestId = useRef(0);
 
   const steps = [
     { number: 1, title: 'Location', description: 'Set your GPS location' },
@@ -191,6 +162,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
 
     setLocationStatus('loading');
     setLocationError('');
+    setLakeDetectionError(false);
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -220,29 +192,26 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
             latitude: position.coords.latitude,
             longitude: position.coords.longitude
           });
+          const detectedLakeName = lakeSuggestion?.LakeName || lakeSuggestion?.lakeName;
+          const distanceKm = lakeSuggestion?.DistanceKm ?? lakeSuggestion?.distanceKm;
           
           console.log('[Location] Lake detection result:', lakeSuggestion);
           console.log('[Location] Checking lakeSuggestion properties:', {
             hasObject: !!lakeSuggestion,
-            lakeName: lakeSuggestion?.lakeName,
-            LakeName: (lakeSuggestion as any)?.LakeName,
-            allKeys: lakeSuggestion ? Object.keys(lakeSuggestion) : []
+            lakeName: detectedLakeName
           });
           
-          // Backend returns PascalCase (LakeName), so check both
-          const detectedLakeName = (lakeSuggestion as any)?.LakeName || lakeSuggestion?.lakeName;
-          
           if (lakeSuggestion && detectedLakeName) {
-            console.log(`[Location] Lake found: ${detectedLakeName} at ${lakeSuggestion.distanceKm?.toFixed(2)}km`);
+            console.log(`[Location] Lake found: ${detectedLakeName} at ${distanceKm?.toFixed(2)}km`);
             
             // Normalize the object to camelCase for consistency
             const normalizedSuggestion: LakeSuggestion = {
               lakeName: detectedLakeName,
-              latitude: (lakeSuggestion as any).Latitude || lakeSuggestion.latitude,
-              longitude: (lakeSuggestion as any).Longitude || lakeSuggestion.longitude,
-              reportCount: (lakeSuggestion as any).ReportCount || lakeSuggestion.reportCount,
-              distanceKm: (lakeSuggestion as any).DistanceKm || lakeSuggestion.distanceKm,
-              lastReportDate: (lakeSuggestion as any).LastReportDate || lakeSuggestion.lastReportDate
+              latitude: lakeSuggestion.Latitude ?? lakeSuggestion.latitude,
+              longitude: lakeSuggestion.Longitude ?? lakeSuggestion.longitude,
+              reportCount: lakeSuggestion.ReportCount ?? lakeSuggestion.reportCount,
+              distanceKm,
+              lastReportDate: lakeSuggestion.LastReportDate ?? lakeSuggestion.lastReportDate
             };
             
             setDetectedLake(normalizedSuggestion);
@@ -256,6 +225,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
         } catch (error) {
           console.error('[Location] Error detecting lake:', error);
           setDetectedLake(null);
+          setLakeDetectionError(true);
         } finally {
           setIsDetectingLake(false);
         }
@@ -263,7 +233,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
       (error) => {
         let errorMessage = 'Unable to get your location';
         if (error.code === error.PERMISSION_DENIED) {
-          errorMessage = 'Location access was denied. Please go into your browser settings and enable location access. We require location data to prevent spam and ensure reports are from actual lake locations.';
+          errorMessage = 'Location access was denied. Enable location in your browser settings to include GPS coordinates with your report.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
           errorMessage = 'Location information unavailable';
         } else if (error.code === error.TIMEOUT) {
@@ -346,13 +316,21 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
 
   // Search lakes as user types with debounce to prevent flickering
   const handleLakeNameChange = async (value: string) => {
+    const requestId = ++lakeSearchRequestId.current;
     const validation = sanitizeText(value, 'Lake name');
     if (!validation.isValid) {
       setValidationErrors(prev => ({ ...prev, lake: validation.error! }));
+      setIsSearchingLakes(false);
+      setLakeSearchError(false);
       return;
     }
-    setValidationErrors(prev => {const {lake, ...rest} = prev; return rest;});
+    setValidationErrors(prev => {
+      const next = { ...prev };
+      delete next.lake;
+      return next;
+    });
     setFormData(prev => ({ ...prev, lake: validation.cleanedText }));
+    setLakeDetectionError(false);
     
     // Clear existing timeout
     if (searchTimeout) {
@@ -360,6 +338,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
     }
     
     if (value.length >= 2) {
+      setLakeSearchError(false);
       // Wait 500ms before searching to avoid flickering
       const timeout = setTimeout(async () => {
         setIsSearchingLakes(true);
@@ -367,7 +346,9 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
         
         try {
           const { api } = await import('../../lib/api');
+          trackLakeSearch(value);
           const suggestions = await api.searchLakes(value);
+          if (requestId !== lakeSearchRequestId.current) return;
           
           console.log('Lake search results for "' + value + '":', suggestions);
           
@@ -384,8 +365,13 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
           console.log('Showing suggestions:', suggestions.length > 0, 'Count:', suggestions.length);
         } catch (error) {
           console.error('Error searching lakes:', error);
+          if (requestId === lakeSearchRequestId.current) {
+            setLakeSearchError(true);
+            setLakeSuggestions([]);
+            setShowLakeSuggestions(false);
+          }
         } finally {
-          setIsSearchingLakes(false);
+          if (requestId === lakeSearchRequestId.current) setIsSearchingLakes(false);
         }
       }, 500);
       
@@ -394,6 +380,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
       setLakeSuggestions([]);
       setShowLakeSuggestions(false);
       setIsSearchingLakes(false);
+      setLakeSearchError(false);
     }
   };
 
@@ -469,7 +456,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
         maxHeight: '95vh',
         overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-      }}>
+      }} data-clarity-mask="true">
         {/* Header */}
         <div style={{
           background: 'var(--primary-dark)',
@@ -594,7 +581,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 marginBottom: '1rem',
                 color: 'var(--primary-dark)'
               }}>
-                📍 Set Your GPS Location
+                 Set Your GPS Location
               </h3>
               
               <div style={{ marginBottom: '1.5rem' }}>
@@ -635,10 +622,10 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     gap: '0.5rem'
                   }}
                 >
-                  {locationStatus === 'loading' && '⏳ Getting your location...'}
+                  {locationStatus === 'loading' && ' Getting your location...'}
                   {locationStatus === 'success' && '✓ Location Captured'}
-                  {locationStatus === 'idle' && '📍 Use My Location'}
-                  {locationStatus === 'error' && '⚠️ Try Again'}
+                  {locationStatus === 'idle' && ' Use My Location'}
+                  {locationStatus === 'error' && ' Try Again'}
                 </button>
 
                 {/* Show coordinates when captured */}
@@ -717,7 +704,11 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                       setValidationErrors(prev => ({ ...prev, location: validation.error! }));
                       return;
                     }
-                    setValidationErrors(prev => {const {location, ...rest} = prev; return rest;});
+                    setValidationErrors(prev => {
+                      const next = { ...prev };
+                      delete next.location;
+                      return next;
+                    });
                     setFormData({ ...formData, location: validation.cleanedText });
                   }}
                   placeholder="e.g., West shore, North bay, Near boat launch..."
@@ -739,7 +730,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     color: '#d32f2f',
                     marginTop: '0.5rem'
                   }}>
-                    ⚠️ {validationErrors.location}
+                     {validationErrors.location}
                   </div>
                 )}
               </div>
@@ -755,7 +746,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 marginBottom: '1rem',
                 color: 'var(--primary-dark)'
               }}>
-                🏞️ Identify the Lake
+                 Identify the Lake
               </h3>
 
               <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
@@ -783,7 +774,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                       animation: 'spin 0.8s linear infinite'
                     }} />
                     <div>
-                      <div style={{ fontWeight: 600 }}>🔍 Searching for lakes nearby...</div>
+                      <div style={{ fontWeight: 600 }}> Searching for lakes nearby...</div>
                       <div style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
                         Checking our database for reports within 2km
                       </div>
@@ -803,7 +794,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     color: '#155724'
                   }}>
                     <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '1rem' }}>
-                      📍 I noticed you might be close to <strong>{detectedLake.lakeName}</strong>
+                       I noticed you might be close to <strong>{detectedLake.lakeName}</strong>
                     </div>
                     <div style={{ fontSize: '0.9rem', marginBottom: '0.75rem' }}>
                       Is this the same lake you are at?
@@ -837,7 +828,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                           cursor: 'pointer'
                         }}
                       >
-                        ✓ Yes, I'm at {detectedLake.lakeName}
+                        ✓ Yes, I&apos;m at {detectedLake.lakeName}
                       </button>
                       <button
                         type="button"
@@ -893,7 +884,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     color: '#856404'
                   }}>
                     <div style={{ fontWeight: 600, marginBottom: '0.35rem' }}>
-                      {lakeConfirmed === false ? '📝 Please enter the lake name' : '🎯 No lake found at this location'}
+                      {lakeConfirmed === false ? ' Please enter the lake name' : ' No lake found at this location'}
                     </div>
                     <div style={{ fontSize: '0.85rem' }}>
                       {lakeConfirmed === false 
@@ -991,8 +982,28 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     marginTop: '0.5rem',
                     fontStyle: 'italic'
                   }}>
-                    🔍 Searching...
+                     Searching...
                   </div>
+                )}
+
+                {lakeSearchError && (
+                  <p role="status" style={{
+                    fontSize: '0.8rem',
+                    color: '#b42318',
+                    marginTop: '0.5rem'
+                  }}>
+                    Lake search is unavailable. You can still enter the lake name manually.
+                  </p>
+                )}
+
+                {lakeDetectionError && (
+                  <p role="status" style={{
+                    fontSize: '0.8rem',
+                    color: '#856404',
+                    marginTop: '0.5rem'
+                  }}>
+                    We couldn&apos;t match your location to a lake. Search for or enter its name to continue.
+                  </p>
                 )}
                 
                 <p style={{ 
@@ -1019,7 +1030,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 marginBottom: '1rem',
                 color: 'var(--primary-dark)'
               }}>
-                🧊 Ice Details
+                 Ice Details
               </h3>
 
               {/* Thickness Slider */}
@@ -1073,10 +1084,10 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   {[
-                    { value: 'clear', label: '🧊 Clear', desc: 'Strongest' },
-                    { value: 'snow-covered', label: '❄️ Snow', desc: 'Insulated' },
-                    { value: 'slush', label: '💧 Slush', desc: 'Weak' },
-                    { value: 'refrozen', label: '🔄 Refrozen', desc: 'Variable' }
+                    { value: 'clear', label: ' Clear', desc: 'Strongest' },
+                    { value: 'snow-covered', label: ' Snow', desc: 'Insulated' },
+                    { value: 'slush', label: ' Slush', desc: 'Weak' },
+                    { value: 'refrozen', label: ' Refrozen', desc: 'Variable' }
                   ].map((type) => (
                     <label
                       key={type.value}
@@ -1128,7 +1139,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     onChange={(e) => setFormData({ ...formData, isMeasured: e.target.checked })}
                     style={{ marginRight: '0.5rem', width: '18px', height: '18px' }}
                   />
-                  ✅ I drilled/measured it (not just observed)
+                   I drilled/measured it (not just observed)
                 </label>
               </div>
             </div>
@@ -1143,7 +1154,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 marginBottom: '1rem',
                 color: 'var(--primary-dark)'
               }}>
-                📝 Additional Information (Optional)
+                 Additional Information (Optional)
               </h3>
 
               {/* Ice Quality */}
@@ -1215,7 +1226,11 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                       setValidationErrors(prev => ({ ...prev, notes: validation.error! }));
                       return;
                     }
-                    setValidationErrors(prev => {const {notes, ...rest} = prev; return rest;});
+                    setValidationErrors(prev => {
+                      const next = { ...prev };
+                      delete next.notes;
+                      return next;
+                    });
                     setFormData({ ...formData, notes: validation.cleanedText });
                   }}
                   placeholder="Any additional observations about ice conditions, access, or safety concerns..."
@@ -1240,7 +1255,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                     color: '#d32f2f',
                     marginTop: '0.5rem'
                   }}>
-                    ⚠️ {validationErrors.notes}
+                     {validationErrors.notes}
                   </div>
                 )}
                 <p style={{
@@ -1275,7 +1290,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 marginBottom: '1.5rem'
               }}>
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: 'var(--primary-dark)' }}>📍 Location:</strong>
+                  <strong style={{ color: 'var(--primary-dark)' }}> Location:</strong>
                   <div style={{ marginTop: '0.25rem', fontSize: '0.95rem' }}>
                     {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                     {formData.location && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{formData.location}</div>}
@@ -1283,14 +1298,14 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 </div>
 
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: 'var(--primary-dark)' }}>🏞️ Lake:</strong>
+                  <strong style={{ color: 'var(--primary-dark)' }}> Lake:</strong>
                   <div style={{ marginTop: '0.25rem', fontSize: '0.95rem' }}>
                     {formData.lake || 'Not specified'}
                   </div>
                 </div>
 
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: 'var(--primary-dark)' }}>🧊 Ice Thickness:</strong>
+                  <strong style={{ color: 'var(--primary-dark)' }}> Ice Thickness:</strong>
                   <div style={{ marginTop: '0.25rem', fontSize: '0.95rem' }}>
                     {formData.thickness}&quot;
                   </div>
@@ -1340,7 +1355,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                 border: '2px solid #F7A93D'
               }}>
                 <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: '#856404' }}>
-                  ⚠️ Before you submit:
+                   Before you submit:
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#856404' }}>
                   <li>This is a community signal, not permission to access ice</li>

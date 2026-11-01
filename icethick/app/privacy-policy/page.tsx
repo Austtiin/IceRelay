@@ -19,12 +19,10 @@ export default function PrivacyPolicyPage() {
     <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>

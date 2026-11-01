@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning';
 
@@ -14,50 +14,51 @@ interface NotificationProps {
 export default function Notification({ message, type, duration = 8000, onClose }: NotificationProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    // Fade in
-    setTimeout(() => setIsVisible(true), 10);
-
-    // Auto close after duration
-    const timer = setTimeout(() => {
-      handleClose();
-    }, duration);
-
-    return () => clearTimeout(timer);
-  }, [duration]);
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    if (closeTimer.current) return;
     setIsExiting(true);
-    setTimeout(() => {
+    closeTimer.current = setTimeout(() => {
       onClose();
     }, 300);
-  };
+  }, [onClose]);
+
+  useEffect(() => {
+    const showTimer = setTimeout(() => setIsVisible(true), 10);
+    const autoCloseTimer = setTimeout(handleClose, duration);
+
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(autoCloseTimer);
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, [duration, handleClose]);
 
   const colors = {
     success: {
       bg: '#d4edda',
       border: '#28a745',
       text: '#155724',
-      icon: '✅'
+      label: 'Success'
     },
     error: {
       bg: '#f8d7da',
       border: '#dc3545',
       text: '#721c24',
-      icon: '❌'
+      label: 'Error'
     },
     info: {
       bg: '#d1ecf1',
       border: '#17a2b8',
       text: '#0c5460',
-      icon: 'ℹ️'
+      label: 'Information'
     },
     warning: {
       bg: '#fff3cd',
       border: '#ffc107',
       text: '#856404',
-      icon: '⚠️'
+      label: 'Warning'
     }
   };
 
@@ -65,13 +66,16 @@ export default function Notification({ message, type, duration = 8000, onClose }
 
   return (
     <div
+      className="toast-notification"
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
       style={{
         position: 'fixed',
         top: isVisible && !isExiting ? '1rem' : '-100px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 9999,
-        minWidth: '320px',
+        minWidth: '0',
         maxWidth: '90%',
         width: 'auto',
         background: style.bg,
@@ -87,10 +91,8 @@ export default function Notification({ message, type, duration = 8000, onClose }
         pointerEvents: 'auto'
       }}
     >
-      <div style={{ fontSize: '1.5rem', flexShrink: 0 }}>
-        {style.icon}
-      </div>
       <div style={{ flex: 1, color: style.text }}>
+        <strong>{style.label}: </strong>
         <div style={{ 
           fontWeight: 600, 
           fontSize: '0.95rem',
@@ -102,6 +104,7 @@ export default function Notification({ message, type, duration = 8000, onClose }
       </div>
       <button
         onClick={handleClose}
+        aria-label="Dismiss notification"
         style={{
           background: 'transparent',
           border: 'none',

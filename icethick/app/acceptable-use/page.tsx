@@ -19,12 +19,10 @@ export default function AcceptableUsePage() {
     <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>
@@ -68,7 +66,7 @@ export default function AcceptableUsePage() {
               marginBottom: '0.75rem'
             }}>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                ✅ You MAY use Ice Relay to:
+                 You MAY use Ice Relay to:
               </p>
               <ul style={{ marginLeft: '1.5rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                 <li>Submit honest, good-faith ice thickness reports</li>
@@ -93,7 +91,7 @@ export default function AcceptableUsePage() {
               marginBottom: '0.75rem'
             }}>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                ⛔ You may NOT use Ice Relay to submit, post, or promote:
+                 You may NOT use Ice Relay to submit, post, or promote:
               </p>
             </div>
 

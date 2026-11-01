@@ -1,165 +1,60 @@
-# Ice Relay 📡
+# Ice Relay Web App
 
-**Ice thickness across the Midwest** - Real-world ice reports from the community. No account required. Stay safe this winter.
+The Ice Relay frontend is a Next.js static export deployed to Azure Static Web Apps. It displays community-submitted ice thickness reports and links to official safety guidance; a report is not a safety assessment.
 
-## 🎯 The Concept
+## Features
 
-Ice Relay is a community-driven platform providing real-time ice thickness data across the Midwest. Unlike official DNR charts, you get actual measurements from people on the ice - submitted anonymously, validated by the community, and designed for quick access in freezing conditions.
+- Recent community reports and an interactive Mapbox map
+- Lake-name search backed by the reports API
+- State map shortcuts for Minnesota, Wisconsin, Michigan, Iowa, North Dakota, and South Dakota
+- GPS-based report submission with no account required
+- Official safety resources and a safety guide
 
-## 🎨 Design
+State shortcuts only change the map view. The amount and recency of reports varies by location.
 
-- **Mobile-First**: Cold fingers friendly UI
-- **Color Palette**:
-  - Primary Dark: `#495867` - Headers, navigation
-  - Primary Medium: `#577399` - Buttons, safe ice
-  - Primary Light: `#BDD5EA` - Map overlays, cards
-  - Background: `#F7F7FF` - Main page
-  - Alert Red: `#FE5F55` - Danger warnings (used sparingly for impact)
+## Local Development
 
-## ✨ Features
+Requirements: Node.js 24 LTS, .NET 10 SDK, and Azure Functions Core Tools v4.
 
-### What Users Can Do:
-- 📏 **Report Ice Thickness** in inches
-- 📍 **Tag Location** via GPS or lake name  
-- 🧊 **Select Surface Type**: Clear ice, Snow-covered, Slush, Refrozen
-- 💬 **Optional Notes**: "ATV broke through", "Pressure cracks", "Foot traffic only"
-- ✅ **No Account Required** - Submit anonymously
+Next.js 16's default browser targets include Chrome/Edge 111+, Firefox 111+, and Safari 16.4+ (including iOS Safari).
 
-### What Makes It Valuable:
-- 🌐 **Real-World Reports** - Not just DNR charts
-- ✓✓ **Trust Score** - Confidence based on multiple reports
-- ⏱️ **Report Decay** - Older reports (24-48hr+) flagged for verification
-- 📱 **Mobile-First** - Designed for cold fingers
-- 🎯 **5-Tier Safety Scale** - Clear activity guidelines
-
-## 📋 The IceLine Rules
-
-These principles make Ice Relay trustworthy:
-
-1. **⚠️ No Guarantees** - Ice conditions change hourly. This is a signal, not permission.
-2. **📏 Report What You Measured** - If you didn't drill it, mark it as observed not measured.
-3. **⏱️ Recent Reports Matter More** - Reports decay over time. After 24-48 hours, verify current conditions.
-4. **✓✓ More Reports = More Confidence** - One report = caution. Multiple matching reports = higher confidence.
-5. **🚫 Anonymous, Not Reckless** - Troll or false reports get auto-flagged by the system.
-
-## 🧊 Ice Safety Scale (5-Tier System)
-
-| Thickness | Activity | Safety Level |
-|-----------|----------|--------------|
-| 🔴 0-3" | No foot traffic | STAY OFF |
-| 🟠 4-6" | Foot only | Walking only, extreme caution |
-| 🟡 7-9" | Snowmobile | Light vehicles OK |
-| 🟢 10-12" | ATV | ATVs generally safe |
-| 🔵 12+" | Truck (still risky) | Heavy vehicles possible |
-   # Top navigation with branding
-│   │   ├── Navigation.tsx          # Side menu
-│   │   ├── Footer.tsx              # Legal disclaimers
-│   │   ├── ReportCard.tsx          # Ice reports with trust scores
-│   │   └── SubmitReportForm.tsx    # Enhanced submission form
-│   ├── globals.css                 # 5-tier color system
-│   ├── layout.tsx                  # Root layout
-│   └── page.tsx                    # Main page with IceLine Rules
-├── public/
-│   └── IceRelay.png                # Brand logo
-└── package.json
-```
-
-## 🎯 Roadmap
-
-- [ ] Integrate real map with Midwest coverage (Leaflet/Mapbox)
-- [ ] Backend API with PostgreSQL/Supabase
-- [ ] GPS coordinate tagging
-- [ ] Auto-flag system for suspicious reports
-- [ ] Weather integration (temp, wind data)
-- [ ] Lake detail pages with 7-day history
-- [ ] PWA support for offline access
-- [ ] Push notifications for dangerous conditions
-- [ ] Expand to Wisconsin, Michigan, Minnesota, Iowa
-├── app/
-│   ├── components/
-│   │   ├── Header.tsx           # Top navigation bar
-│ This is a signal, not permission.** Always verify ice safety personally before venturing out. This application is provided for informational purposes only. The creators, contributors, and maintainers assume NO liability for any injuries, damages, or losses resulting from the use of this information.
-
-**Use at your own risk.** Ice safety is the sole responsibility of each individual. When in doubt, stay off the ice.
-
-## 🔥 What Makes Ice Relay Different
-
-✅ **No DNR Lag** - Real people, real measurements, right now  
-✅ **Trust Scores** - See confidence level based on multiple reports  
-✅ **Report Decay** - Old data gets flagged automatically  
-✅ **Activity-Specific** - Not just "safe/unsafe" - specific to your activity  
-✅ **Anonymous** - No account barriers, no friction  
-✅ **Cold-Weather UX** - Big buttons, quick actions, minimal typing
-│   │   └── SubmitReportForm.tsx # Report submission form
-│   ├── globals.css              # Global styles & CSS variables
-│   ├── layout.tsx               # Root layout
-│   └── page.tsx                 # Home page
-├── public/                      # Static assets
-└── package.json
-```
-
-## 🎯 Roadmap
-
-- [ ] Integrate real map (Leaflet/Mapbox)
-- [ ] Backend API with database (PostgreSQL/Supabase)
-- [ ] User authentication (optional)
-- [ ] Lake detail pages with 7-day history charts
-- [ ] Push notifications for unsafe conditions
-- [ ] PWA support for offline access
-- [ ] Weather integration
-- [ ] Ice fishing reports
-
-## ⚖️ Legal Disclaimer
-
-**All information is subject to change.** Ice thickness data is crowd-sourced, estimated, and may not be accurate or current. Ice conditions can vary significantly across a lake and can change rapidly due to weather conditions.
-
-**Always verify ice safety personally before venturing out.** This application is provided for informational purposes only. The creators, contributors, and maintainers assume NO liability for any injuries, damages, or losses resulting from the use of this information.
-
-**Use at your own risk.** Ice safety is the sole responsibility of each individual. When in doubt, stay off the ice.
-
-## 👨‍💻 Author
-
-Created by [Austtiin](https://github.com/Austtiin)
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
----
-
-## Learn More About Next.jsvelopment server:
-
-```bash
+```powershell
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+In another terminal, run the API:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+cd ..\api
+func start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Or run both processes from this directory with `npm run dev:all`.
 
-## Learn More
+Create `.env.local` in this directory with build-time settings:
 
-To learn more about Next.js, take a look at the following resources:
+```text
+NEXT_PUBLIC_API_URL=http://localhost:7071/api
+NEXT_PUBLIC_MAPBOX_TOKEN=<your Mapbox public token>
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The API also needs a local Functions setting named `SqlConnectionString`. Do not commit credentials.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build and Deployment
 
-## Deploy on Vercel
+```powershell
+npm run lint
+npm run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The static export is written to `out/`. GitHub Actions builds and deploys this directory to Azure Static Web Apps. The .NET 10 isolated Functions API is deployed separately; see the repository-level [deployment guide](../DEPLOYMENT.md).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_MAPBOX_TOKEN` must be available as GitHub Actions secrets during the frontend build because they are embedded in the static site.
+
+## Data and Safety Notes
+
+- Lake search suggestions are derived from reports currently in the API database; a lake without reports may not appear in search.
+- The map and search API currently limit report data to the previous 180 days.
+- Nearby-report and lake-detail API routes still return placeholder data; the current UI uses lake search and map-bounds queries instead.
+- Ice thickness and surface observations are unverified, location-specific, and may become outdated quickly. Consult the responsible state agency and use your own judgment. Never treat a report as permission to go onto the ice.

@@ -4,28 +4,36 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
-// Debug: Log the API URL being used
-console.log('[API Config] API_BASE_URL:', API_BASE_URL);
-console.log('[API Config] process.env.NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+if (process.env.NODE_ENV === 'development') {
+  console.info('[API Config] API_BASE_URL:', API_BASE_URL);
+}
 
-// Helper function to wait
+/** Thrown when the API cannot be reached at all (server down, offline, CORS, DNS). */
+export class ApiUnavailableError extends Error {
+  constructor() {
+    super('The ice report service is not reachable right now.');
+    this.name = 'ApiUnavailableError';
+  }
+}
+
+export function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Retry wrapper for fetch requests
+// Retries network failures only; HTTP error responses are returned to the caller.
 async function fetchWithRetry(url: string, options?: RequestInit, retries = MAX_RETRIES): Promise<Response> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const response = await fetch(url, options);
-      return response;
+      return await fetch(url, options);
     } catch (error) {
-      if (attempt === retries) {
-        throw new Error(`Failed after ${retries} attempts: ${error instanceof Error ? error.message : 'Network error'}`);
-      }
-      // Wait before retrying
-      await wait(RETRY_DELAY * attempt); // Exponential backoff
+      if (isAbortError(error)) throw error;
+      if (attempt === retries) throw new ApiUnavailableError();
+      await wait(RETRY_DELAY * attempt);
     }
   }
-  throw new Error('Unexpected error in retry logic');
+  throw new ApiUnavailableError();
 }
 
 export interface IceReport {
@@ -78,11 +86,17 @@ export interface NearbyReportsRequest {
 
 export interface LakeSuggestion {
   lakeName?: string;
-  latitude: number;
-  longitude: number;
-  reportCount: number;
+  LakeName?: string;
+  latitude?: number;
+  Latitude?: number;
+  longitude?: number;
+  Longitude?: number;
+  reportCount?: number;
+  ReportCount?: number;
   distanceKm?: number;
+  DistanceKm?: number;
   lastReportDate?: string;
+  LastReportDate?: string;
 }
 
 export interface DetectLakeRequest {
@@ -158,32 +172,26 @@ export const api = {
   // Detect lake by GPS coordinates
   async detectLake(request: DetectLakeRequest): Promise<LakeSuggestion | null> {
     console.log('[API] POST /reports/detect-lake - Payload:', request);
-    try {
-      const response = await fetchWithRetry(`${API_BASE_URL}/reports/detect-lake`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      });
-      
-      if (response.status === 404) {
-        console.log('[API] POST /reports/detect-lake - No lake found (404)');
-        return null;
-      }
-      
-      if (!response.ok) {
-        console.error('[API] POST /reports/detect-lake - Failed:', response.status, response.statusText);
-        throw new Error('Failed to detect lake');
-      }
-      
-      const result = await response.json();
-      console.log('[API] POST /reports/detect-lake - Success:', result);
-      return result;
-    } catch (error) {
-      console.error('[API] POST /reports/detect-lake - Error:', error);
+    const response = await fetchWithRetry(`${API_BASE_URL}/reports/detect-lake`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (response.status === 404) {
+      console.log('[API] POST /reports/detect-lake - No lake found (404)');
       return null;
     }
+
+    if (!response.ok) {
+      throw new Error(`Failed to detect lake (${response.status})`);
+    }
+
+    const result: LakeSuggestion = await response.json();
+    console.log('[API] POST /reports/detect-lake - Success:', result);
+    return result;
   },
 
   // Search lake names (autocomplete)
@@ -193,22 +201,16 @@ export const api = {
     }
 
     console.log('[API] GET /reports/search-lakes - Query:', query);
-    try {
-      const encodedQuery = encodeURIComponent(query);
-      const response = await fetchWithRetry(`${API_BASE_URL}/reports/search-lakes?q=${encodedQuery}`);
-      
-      if (!response.ok) {
-        console.error('[API] GET /reports/search-lakes - Failed:', response.status);
-        return [];
-      }
-      
-      const results = await response.json();
-      console.log('[API] GET /reports/search-lakes - Results:', results);
-      return results;
-    } catch (error) {
-      console.error('[API] GET /reports/search-lakes - Error:', error);
-      return [];
+    const encodedQuery = encodeURIComponent(query);
+    const response = await fetchWithRetry(`${API_BASE_URL}/reports/search-lakes?q=${encodedQuery}`);
+
+    if (!response.ok) {
+      throw new Error(`Lake search failed (${response.status})`);
     }
+
+    const results: LakeSuggestion[] = await response.json();
+    console.log('[API] GET /reports/search-lakes - Results:', results);
+    return results;
   },
 
   // Get reports within map bounds
@@ -218,30 +220,21 @@ export const api = {
     east: number;
     west: number;
     zoom: number;
-  }): Promise<IceReport[]> {
-    console.log('[API] GET /reports/bounds - Bbox:', bbox);
-    try {
-      const params = new URLSearchParams({
-        north: bbox.north.toString(),
-        south: bbox.south.toString(),
-        east: bbox.east.toString(),
-        west: bbox.west.toString(),
-        zoom: bbox.zoom.toString()
-      });
-      
-      const response = await fetchWithRetry(`${API_BASE_URL}/reports/bounds?${params}`);
-      
-      if (!response.ok) {
-        console.error('[API] GET /reports/bounds - Failed:', response.status);
-        return [];
-      }
-      
-      const data = await response.json();
-      console.log('[API] GET /reports/bounds - Results:', data.length);
-      return data;
-    } catch (error) {
-      console.error('[API] GET /reports/bounds - Error:', error);
-      return [];
+  }, signal?: AbortSignal): Promise<IceReport[]> {
+    const params = new URLSearchParams({
+      north: bbox.north.toString(),
+      south: bbox.south.toString(),
+      east: bbox.east.toString(),
+      west: bbox.west.toString(),
+      zoom: bbox.zoom.toString()
+    });
+
+    const response = await fetchWithRetry(`${API_BASE_URL}/reports/bounds?${params}`, { signal });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch map reports (${response.status})`);
     }
+
+    return await response.json() as IceReport[];
   },
 };

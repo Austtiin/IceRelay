@@ -2,9 +2,9 @@
 
 :root {
   /* Ice Relay Color Palette */
-  --primary-dark: #495867;
-  --primary-medium: #577399;
-  --primary-light: #BDD5EA;
+  --primary-dark: #18364f;
+  --primary-medium: #426b8c;
+  --primary-light: #c6d9e8;
   --background: #ffffff;
   --background-secondary: #f8f9fa;
   
@@ -25,6 +25,7 @@
   --foreground: #2c3e50;
   --text-secondary: #6c757d;
   --border-color: #e9ecef;
+  --font-site: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 @theme inline {
@@ -36,8 +37,8 @@
   --color-accent-danger: var(--accent-danger);
   --color-accent-warning: var(--accent-warning);
   --color-accent-safe: var(--accent-safe);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-site);
+  --font-mono: Consolas, "SFMono-Regular", monospace;
 }
 
 body {
@@ -45,11 +46,203 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-site);
+  overflow-x: hidden;
+}
+
+.site-header {
+  height: 80px !important;
+  box-shadow: 0 1px 5px rgba(24, 54, 79, 0.06) !important;
+}
+
+.site-header-logo {
+  width: auto;
+  max-width: min(52vw, 320px);
+  max-height: 76px;
+}
+
+.home-hero {
+  position: relative;
+  padding: clamp(4rem, 8vw, 7rem) 0;
+  background: #18364f;
+  color: white;
+  overflow: hidden;
+}
+
+.home-hero-image {
+  object-fit: cover;
+  object-position: center 60%;
+}
+
+.home-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(14, 31, 45, 0.92), rgba(14, 31, 45, 0.65) 55%, rgba(14, 31, 45, 0.25));
+}
+
+.home-hero-content {
+  position: relative;
+}
+
+.home-introduction {
+  padding: 3rem 0;
+  border-bottom: 1px solid var(--border-color);
+  background: white;
+}
+
+.home-introduction-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.home-introduction h2 {
+  margin-bottom: 0.75rem;
+  color: var(--primary-dark);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.25;
+}
+
+.home-introduction p {
+  line-height: 1.75;
+  color: #4c6070;
+}
+
+.home-introduction a {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--primary-dark);
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+
+.home-introduction button {
+  margin-top: 1rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--primary-dark);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.home-hero-eyebrow {
+  margin-bottom: 1.25rem;
+  color: #d3e2ed;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.home-hero-title {
+  max-width: 760px;
+  font-size: clamp(2.35rem, 5.3vw, 4rem) !important;
+  line-height: 1.15 !important;
+  text-shadow: none !important;
+}
+
+.home-hero-description {
+  max-width: 650px;
+  margin: 0 0 2rem !important;
+  color: #e4edf4;
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  line-height: 1.7;
+}
+
+.home-hero-actions .MuiButton-root {
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.safety-note {
+  box-shadow: 0 2px 6px rgba(24, 54, 79, 0.035);
+}
+
+.home-report-grid > * {
+  border: 1px solid #e4ebf0 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 3px 12px rgba(24, 54, 79, 0.055) !important;
+}
+
+.home-report-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)) !important;
+}
+
+.report-card {
+  transform: none !important;
+}
+
+.report-card:hover {
+  transform: none !important;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+.toast-notification {
+  width: calc(100% - 2rem) !important;
+  min-width: 0 !important;
+}
+
+@media (max-width: 767px) {
+  .site-header {
+    height: 68px !important;
+  }
+
+  .site-header-logo {
+    max-height: 54px;
+  }
+
+  .home-hero {
+    padding: 3.75rem 0 4rem;
+  }
+
+  .home-hero-overlay {
+    background: rgba(14, 31, 45, 0.78);
+  }
+
+  .home-introduction-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .home-hero-title {
+    font-size: clamp(2.1rem, 9vw, 3rem) !important;
+  }
+
+  .home-hero-actions {
+    gap: 0.75rem !important;
+  }
+
+  .home-hero-actions .MuiButton-root {
+    min-height: 46px;
+  }
+
+  .header-menu-button {
+    padding: 0.5rem 0.75rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Responsive Navigation */
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .desktop-nav {
     display: flex !important;
   }
@@ -58,7 +251,7 @@ body {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .desktop-nav {
     display: none !important;
   }

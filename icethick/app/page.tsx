@@ -1,21 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Container from '@mui/material/Container';
 import CircularProgress from '@mui/material/CircularProgress';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import EditNoteIcon from '@mui/icons-material/EditNote';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import ReportCard from './components/ReportCard';
 import SubmitReportForm, { ReportData } from './components/SubmitReportForm';
 import CookieConsent from './components/CookieConsent';
-import WaveDivider from './components/WaveDivider';
 import Notification, { NotificationType } from './components/Notification';
 import AdBox from './components/AdBox';
 import { trackReportSubmission } from './lib/analytics';
@@ -37,7 +33,64 @@ interface Report {
   isMeasured: boolean;
 }
 
+const subscribeToLocation = (onStoreChange: () => void) => {
+  window.addEventListener('popstate', onStoreChange);
+  return () => window.removeEventListener('popstate', onStoreChange);
+};
+
+const getNewReportQuery = () =>
+  new URLSearchParams(window.location.search).get('newReport') === 'true';
+
+const getServerNewReportQuery = () => false;
+
+function getTimeAgo(createdAt?: string | Date): string {
+  if (!createdAt) return 'Just now';
+
+  const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+  const now = new Date();
+
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date:', createdAt);
+    return 'Just now';
+  }
+
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = diffMs / 60000;
+  const diffHours = diffMins / 60;
+  const diffDays = diffHours / 24;
+
+  if (diffMs < 0) {
+    console.warn('Report date is in the future:', createdAt);
+    return 'Just now';
+  }
+
+  if (diffHours < 1) return 'Just now';
+  const hours = Math.floor(diffHours);
+  const days = Math.floor(diffDays);
+  if (diffHours < 24) return `Posted ${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  return `Posted ${days} day${days !== 1 ? 's' : ''} ago`;
+}
+
+function formatSurfaceType(type?: string): string {
+  if (!type) return 'Unknown';
+
+  const typeMap: Record<string, string> = {
+    'clear': 'Clear ice',
+    'snow': 'Snow-covered',
+    'slush': 'Slush',
+    'refrozen': 'Refrozen',
+    'snow-covered': 'Snow-covered'
+  };
+
+  return typeMap[type.toLowerCase()] || type;
+}
+
 export default function Home() {
+  const newReportRequested = useSyncExternalStore(
+    subscribeToLocation,
+    getNewReportQuery,
+    getServerNewReportQuery
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
   const [showLakeConfirmation, setShowLakeConfirmation] = useState(false);
@@ -45,25 +98,18 @@ export default function Home() {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
 
-  // Fetch reports on component mount
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  // Check for newReport URL parameter to auto-open form
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('newReport') === 'true') {
-      setIsSubmitFormOpen(true);
-      // Clean up URL without page reload
-      window.history.replaceState({}, '', '/');
+  const closeSubmitForm = () => {
+    setIsSubmitFormOpen(false);
+    if (newReportRequested) {
+      window.history.replaceState({}, '', window.location.pathname);
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
-  }, []);
+  };
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
-      setIsLoadingReports(true);
       const { api } = await import('../lib/api');
+      setIsLoadingReports(true);
       const fetchedReports = await api.getReports();
       
       console.log('[FetchReports] Raw API response:', fetchedReports);
@@ -98,16 +144,25 @@ export default function Home() {
       
       setReports(displayReports);
     } catch (error) {
-      console.error('[FetchReports] Error fetching reports:', error);
+      const { ApiUnavailableError } = await import('../lib/api');
+      console.warn('[FetchReports] Reports unavailable:', error instanceof Error ? error.message : error);
       setNotification({
-        message: 'Failed to load reports. Please try again.',
+        message: error instanceof ApiUnavailableError
+          ? 'Ice reports are temporarily unavailable. Please try again shortly.'
+          : 'Failed to load reports. Please try again.',
         type: 'error'
       });
       setReports([]);
     } finally {
       setIsLoadingReports(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // The callback yields to async module loading before it updates component state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchReports();
+  }, [fetchReports]);
 
   const handleNewReportClick = () => {
     setShowLakeConfirmation(true);
@@ -124,54 +179,6 @@ export default function Home() {
       message: 'You must be on the lake to submit an accurate report. Please visit the lake and try again.',
       type: 'warning'
     });
-  };
-
-  const getTimeAgo = (createdAt?: string | Date): string => {
-    if (!createdAt) return 'Just now';
-    
-    // Parse the date assuming it's UTC (from database)
-    const date = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
-    
-    // Get current time in CST (UTC-6 or UTC-5 depending on DST)
-    const now = new Date();
-    
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date:', createdAt);
-      return 'Just now';
-    }
-    
-    // Calculate time difference (both dates are in local browser time)
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = diffMs / 60000;
-    const diffHours = diffMins / 60;
-    const diffDays = diffHours / 24;
-    
-    // Handle future dates (shouldn't happen but log if it does)
-    if (diffMs < 0) {
-      console.warn('Report date is in the future:', createdAt);
-      return 'Just now';
-    }
-    
-    // If less than 1 hour, show "Just now"
-    if (diffHours < 1) return 'Just now';
-    const hours = Math.floor(diffHours);
-    const days = Math.floor(diffDays);
-    if (diffHours < 24) return `Posted ${hours} hour${hours !== 1 ? 's' : ''} ago`;
-    return `Posted ${days} day${days !== 1 ? 's' : ''} ago`;
-  };
-
-  const formatSurfaceType = (type?: string): string => {
-    if (!type) return 'Unknown';
-    
-    const typeMap: Record<string, string> = {
-      'clear': 'Clear ice',
-      'snow': 'Snow-covered',
-      'slush': 'Slush',
-      'refrozen': 'Refrozen',
-      'snow-covered': 'Snow-covered'
-    };
-    return typeMap[type.toLowerCase()] || type;
   };
 
   const handleSubmitReport = async (data: ReportData) => {
@@ -261,14 +268,6 @@ export default function Home() {
     }
   };
 
-  const stats = {
-    danger: reports.filter(r => r.thickness < 4).length,
-    foot: reports.filter(r => r.thickness >= 4 && r.thickness < 7).length,
-    snowmobile: reports.filter(r => r.thickness >= 7 && r.thickness < 10).length,
-    atv: reports.filter(r => r.thickness >= 10 && r.thickness < 12).length,
-    truck: reports.filter(r => r.thickness >= 12).length
-  };
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <CookieConsent />
@@ -294,112 +293,95 @@ export default function Home() {
 
       <main style={{ flex: 1 }}>
         {/* Hero Section */}
-        <section style={{
-          position: 'relative',
-          backgroundImage: 'url(/HomeHero.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          padding: '6rem 0',
-          color: 'white',
-          textAlign: 'center',
-          overflow: 'hidden'
-        }}>
-          {/* Gradient fade at top to blend with navbar */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '100px',
-            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 0%, transparent 100%)',
-            zIndex: 1
-          }} />
+        <section className="home-hero" aria-labelledby="home-title">
+          <Image
+            src="/HomeHero.jpg"
+            alt=""
+            fill
+            sizes="100vw"
+            preload
+            className="home-hero-image"
+          />
+          <div className="home-hero-overlay" aria-hidden="true" />
           
-          {/* Dark overlay for better text readability */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(135deg, rgba(73, 88, 103, 0.85) 0%, rgba(87, 115, 153, 0.75) 100%)',
-            zIndex: 1
-          }} />
-          
-          <div className="container" style={{ position: 'relative', zIndex: 3 }}>
-            <h1 style={{
-              fontSize: '3rem',
+          <div className="container home-hero-content" style={{ position: 'relative', zIndex: 3 }}>
+            <p className="home-hero-eyebrow">ICE RELAY · UPPER MIDWEST</p>
+            <h1 id="home-title" className="home-hero-title" style={{
+              fontSize: '3.25rem',
               fontWeight: 700,
-              marginBottom: '1rem',
-              letterSpacing: '-0.02em',
-              textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+              marginBottom: '1.25rem',
+              letterSpacing: '-0.035em'
             }}>
-              Safe Ice Thickness Near You
+              Community ice thickness reports for your local lakes.
             </h1>
-            <p style={{
-              fontSize: '1.25rem',
-              marginBottom: '2.5rem',
-              maxWidth: '600px',
-              margin: '0 auto 2.5rem',
-              textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
-            }}>
-              Current ice conditions and ice fishing safety reports from Minnesota and Midwest lakes. Check ice thickness before you go.
+            <p className="home-hero-description">
+              Explore recent, community-submitted observations from lakes across the Upper Midwest. Reports are unverified and are not a measure of ice safety.
             </p>
-            <div style={{
+            <div className="home-hero-actions" style={{
               display: 'flex',
               gap: '1rem',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               flexWrap: 'wrap'
             }}>
               <Button
                 variant="contained"
                 size="large"
-                startIcon={<LocationOnIcon />}
                 href="/near-me"
                 sx={{
                   bgcolor: 'white',
-                  color: 'primary.dark',
+                  color: '#18364f',
+                  borderRadius: '0.5rem',
+                  boxShadow: 'none',
                   '&:hover': {
-                    bgcolor: 'white',
-                    transform: 'translateY(-2px)',
+                    bgcolor: '#eaf2f8',
+                    boxShadow: 'none',
                   },
                 }}
               >
-                View Ice Near Me
+                Search your lake
               </Button>
               <Button
                 variant="outlined"
                 size="large"
-                startIcon={<EditNoteIcon />}
                 onClick={handleNewReportClick}
                 sx={{
-                  borderColor: 'white',
+                  borderColor: 'rgba(255,255,255,0.65)',
                   color: 'white',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
+                  borderRadius: '0.5rem',
+                  bgcolor: 'transparent',
                   '&:hover': {
                     borderColor: 'white',
-                    bgcolor: 'white',
-                    color: 'primary.dark',
-                    transform: 'translateY(-2px)',
+                    bgcolor: 'rgba(255,255,255,0.1)',
                   },
                 }}
               >
-                New Report
+                Share an observation
               </Button>
             </div>
           </div>
           
-          {/* Wave transition at bottom of hero */}
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 2
-          }}>
-            <WaveDivider color="white" flip={true} />
+        </section>
+
+        <section className="home-introduction" aria-labelledby="community-heading">
+          <div className="container home-introduction-content">
+            <div>
+              <h2 id="community-heading">A community resource for the winter season</h2>
+              <p>
+                Ice Relay brings together recent ice thickness observations from lakes across
+                the Upper Midwest. Search for a lake, explore nearby reports, and learn what
+                other visitors have observed.
+              </p>
+              <Link href="/about/">Learn about Ice Relay</Link>
+            </div>
+            <div>
+              <h2>Don&apos;t see your lake listed?</h2>
+              <p>
+                Start by adding your lake for the community. Share a firsthand observation
+                through the report form when you are at the lake. Never venture onto
+                uncertain ice to collect a report.
+              </p>
+              <button type="button" onClick={handleNewReportClick}>Add your lake with a report</button>
+            </div>
           </div>
         </section>
 
@@ -410,99 +392,58 @@ export default function Home() {
           position: 'relative'
         }}>
           <div className="container" style={{ maxWidth: '1000px' }}>
-            <div style={{
-              background: 'rgba(254, 95, 85, 0.08)',
-              border: '2px solid var(--accent-danger)',
-              borderRadius: '1rem',
+            <div className="safety-note" style={{
+              background: '#edf4f8',
+              border: '1px solid #d5e3ec',
+              borderLeft: '4px solid #577399',
+              borderRadius: '0.5rem',
               padding: '1rem 1.25rem',
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '1rem'
+              gap: '0.875rem'
             }}>
-                <div style={{ fontSize: '1.5rem', lineHeight: 1 }}>⚠️</div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{
                     fontSize: '0.95rem',
                   fontWeight: 700,
-                  color: 'var(--accent-danger)',
+                  color: '#274d6b',
                   marginBottom: '0.4rem'
                 }}>
-                  All Reports Are User-Submitted
+                  Use reports as context—not a safety assessment
                 </h3>
                 <p style={{
                   fontSize: '0.85rem',
-                  color: 'var(--text-primary)',
+                  color: '#3e5363',
                   margin: 0,
                   lineHeight: 1.5
                 }}>
-                  Ice conditions are reported by community members and cannot be independently verified. 
-                  <strong> Always measure ice thickness yourself before venturing out.</strong> Ice conditions 
-                  vary greatly across a single lake and can change rapidly. <strong>No ice is 100% safe.</strong> Your 
-                  safety is your responsibility.
+                  Observations are unverified, can become outdated, and may vary across a lake. Check current local guidance and conditions; no ice is completely safe.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Recent Reports + Support Ads - Pin Board Theme */}
-        <section style={{ 
-          padding: '4rem 0 5rem',
-          backgroundImage: 'url(/pin-board-4301129_1920.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'top center',
-          backgroundRepeat: 'no-repeat',
-          position: 'relative'
+        <section style={{
+          padding: '3.5rem 0 4rem',
+          background: 'white'
         }}>
           <div className="container" style={{ maxWidth: '1200px', position: 'relative', zIndex: 1 }}>
             <div style={{
-              marginBottom: '2.5rem',
-              textAlign: 'center',
-              paddingTop: '3rem'
+              marginBottom: '2rem',
+              textAlign: 'left'
             }}>
-              {/* Green sticky note */}
-              <div style={{
-                display: 'inline-block',
-                background: 'linear-gradient(135deg, #d4f4dd 0%, #a8e6cf 100%)',
-                padding: '1.5rem 3rem',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08)',
-                transform: 'rotate(-1deg)',
-                position: 'relative',
-                border: '1px solid rgba(0,0,0,0.05)'
+              <h2 style={{
+                fontSize: 'clamp(1.75rem, 4vw, 2.25rem)',
+                fontWeight: 700,
+                color: 'var(--primary-dark)',
+                marginBottom: '0.5rem'
               }}>
-                {/* Sticky note shadow/fold effect */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '0',
-                  right: '0',
-                  width: '0',
-                  height: '0',
-                  borderLeft: '20px solid transparent',
-                  borderBottom: '20px solid rgba(0,0,0,0.1)',
-                  transform: 'rotate(90deg) translate(10px, 10px)'
-                }} />
-                <h2 style={{
-                  fontSize: '2rem',
-                  fontWeight: 700,
-                  color: '#2d5016',
-                  marginBottom: '0.5rem',
-                  margin: 0
-                }}>
-                  Recent Reports
-                </h2>
-                <p style={{ 
-                  color: '#3d6b1f',
-                  fontSize: '1rem',
-                  marginBottom: '1.5rem'
-                }}>
-                  Latest ice thickness data from the community
-                </p>
-              </div>
-            </div>
-
-            {/* Small ad box to help keep the site free */}
-            <div style={{ margin: '0 auto 2rem', display: 'flex', justifyContent: 'center' }}>
-              <AdBox />
+                Recent Reports
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+                Latest community-submitted observations
+              </p>
             </div>
 
             {isLoadingReports ? (
@@ -542,7 +483,6 @@ export default function Home() {
                 </Typography>
                 <Button
                   variant="contained"
-                  startIcon={<EditNoteIcon />}
                   onClick={handleNewReportClick}
                 >
                   Submit First Report
@@ -550,9 +490,9 @@ export default function Home() {
               </div>
             ) : (
               <>
-                <div style={{
+                <div className="home-report-grid" style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
                   gap: '1.5rem',
                   marginBottom: '2rem'
                 }}>
@@ -572,65 +512,32 @@ export default function Home() {
                 </div>
 
                 <div style={{ textAlign: 'center' }}>
-                  {/* Yellow sticky note style for button */}
-                  <div style={{
-                    display: 'inline-block',
-                    background: 'linear-gradient(135deg, #fff59d 0%, #ffeb3b 100%)',
-                    padding: '0.5rem',
-                    transform: 'rotate(1deg)',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)',
-                    position: 'relative',
-                    border: '1px solid rgba(0,0,0,0.05)',
-                    marginTop: '1rem'
-                  }}>
-                    {/* Thumbtack at top */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '-12px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: '20px',
-                      height: '20px',
-                      background: 'radial-gradient(circle, #2196F3 0%, #1976D2 70%)',
-                      borderRadius: '50%',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.4)',
-                      border: '2px solid #1565C0'
-                    }} />
                   <Button
                     variant="contained"
                     size="large"
-                    endIcon={<ArrowForwardIcon />}
                     href="/near-me"
                     sx={{
-                      bgcolor: '#2196F3',
+                      bgcolor: 'var(--primary-medium)',
                       color: 'white',
                       fontWeight: 700,
                       boxShadow: 'none',
                       '&:hover': {
-                        bgcolor: '#1976D2',
+                        bgcolor: 'var(--primary-dark)',
                         boxShadow: 'none',
-                        transform: 'translateY(-2px)',
                       },
                     }}
                   >
                     View All Reports Near Me
                   </Button>
-                  </div>
                 </div>
               </>
             )}
           </div>
         </section>
 
-        {/* Clean Ice-Themed Transition */}
-        <div style={{
-          height: '60px',
-          background: 'linear-gradient(to bottom, #e8e8e8 0%, rgba(189, 213, 234, 0.3) 50%, var(--primary-light) 100%)'
-        }} />
-
-        {/* Ice Safety Scale - 5 Tiers */}
+        {/* Safety resources */}
         <section style={{
-          background: 'var(--primary-light)',
+          background: '#f3f6f8',
           padding: '3rem 0',
           position: 'relative'
         }}>
@@ -642,7 +549,7 @@ export default function Home() {
               color: 'var(--primary-dark)',
               textAlign: 'center'
             }}>
-              ❄️ Minnesota Ice Safety Guidelines
+              Ice safety starts with local guidance
             </h2>
             <p style={{
               textAlign: 'center',
@@ -650,123 +557,36 @@ export default function Home() {
               marginBottom: '2rem',
               fontSize: '0.95rem'
             }}>
-              Official Minnesota recommendations - always check conditions yourself before venturing out
+              There is no single thickness that makes every body of water or activity safe.
             </p>
-
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: '1.5rem',
-              maxWidth: '1200px',
-              margin: '0 auto'
+              maxWidth: '760px',
+              margin: '0 auto',
+              padding: '1.5rem',
+              borderRadius: '1rem',
+              background: 'white',
+              textAlign: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
             }}>
-              {[
-                {
-                  icon: '🔴',
-                  tier: 'Danger',
-                  thickness: '< 4"',
-                  activity: 'KEEP OFF',
-                  color: '#FE5F55',
-                  desc: 'Ice is too thin. Stay off completely.'
-                },
-                {
-                  icon: '🟠',
-                  tier: 'Foot Traffic',
-                  thickness: '4"',
-                  activity: 'On Foot / Portables',
-                  color: '#FF8C42',
-                  desc: 'Walking and ice fishing with portables only.'
-                },
-                {
-                  icon: '🟡',
-                  tier: 'Snowmobile',
-                  thickness: '5-7"',
-                  activity: 'Snowmobile',
-                  color: '#F7A93D',
-                  desc: 'Snowmobiles and light recreation.'
-                },
-                {
-                  icon: '🟢',
-                  tier: 'ATV/Side-by-Side',
-                  thickness: '7-8"',
-                  activity: 'ATV / UTV',
-                  color: '#2ECC71',
-                  desc: 'ATVs and side-by-side vehicles.'
-                },
-                {
-                  icon: '🔵',
-                  tier: 'Car/Skid House',
-                  thickness: '9-12"',
-                  activity: 'Car / Small Vehicle',
-                  color: '#577399',
-                  desc: 'Cars and small ice houses.'
-                },
-                {
-                  icon: '🟣',
-                  tier: 'Truck',
-                  thickness: '13-17"',
-                  activity: 'Pickup Truck',
-                  color: '#4A90E2',
-                  desc: 'Pickup trucks and medium vehicles.'
-                },
-                {
-                  icon: '⚫',
-                  tier: 'Heavy Duty',
-                  thickness: '20+"',
-                  activity: 'Heavy Truck + House',
-                  color: '#2C3E50',
-                  desc: 'Heavy duty trucks with large ice houses.'
-                }
-              ].map((tier, index) => (
-                <div key={index} style={{
-                  background: 'white',
-                  borderRadius: '1rem',
-                  padding: '1.5rem',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-                  borderLeft: `4px solid ${tier.color}`
-                }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>{tier.icon}</div>
-                  <div style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: 700, 
-                    color: tier.color,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    marginBottom: '0.25rem'
-                  }}>
-                    {tier.tier}
-                  </div>
-                  <h3 style={{ 
-                    fontSize: '1.125rem', 
-                    fontWeight: 700, 
-                    marginBottom: '0.25rem',
-                    color: 'var(--primary-dark)'
-                  }}>
-                    {tier.activity}
-                  </h3>
-                  <div style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: 600, 
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    {tier.thickness}
-                  </div>
-                  <p style={{ 
-                    fontSize: '0.875rem', 
-                    color: 'var(--text-secondary)',
-                    lineHeight: '1.4'
-                  }}>
-                    {tier.desc}
-                  </p>
-                </div>
-              ))}
+              <p style={{ lineHeight: 1.7, marginBottom: '1.25rem' }}>
+                Ice Relay reports are community-submitted observations, not safety assessments. Ice strength
+                changes across a lake and depends on factors beyond a single thickness reading. Check current
+                guidance from the local natural-resources agency, inspect conditions yourself, and stay off
+                when uncertain.
+              </p>
+              <Button variant="contained" href="/safety-guide">
+                Review ice safety guidance
+              </Button>
+              <p style={{ marginTop: '1rem', lineHeight: 1.7 }}>
+                For Minnesota ice safety and ice thickness guidance, start with the{' '}
+                <a href="https://www.dnr.state.mn.us/safety/ice/index.html" style={{ color: 'var(--primary-dark)', textDecoration: 'underline' }}>
+                  Minnesota Department of Natural Resources (MN DNR)
+                </a>.
+                {' '}Ice Relay is an independent community project, not a DNR service or endorsement.
+              </p>
             </div>
           </div>
         </section>
-
-        {/* Wave Divider */}
-        <WaveDivider color="#fafbfc" flip={true} />
 
         {/* Support Ad near bottom of page */}
         <section style={{ 
@@ -829,7 +649,7 @@ export default function Home() {
                 textAlign: 'center'
               }}
             >
-              To ensure accurate ice thickness reports, you must be physically present on the lake where you're measuring. We capture your GPS location with each report so we can verify you are actually on the lake and keep the data trustworthy for everyone.
+              Please submit only while you are physically at the lake you are measuring. GPS coordinates provide location context, but do not independently verify the report or ice conditions.
             </Typography>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <Button
@@ -846,16 +666,16 @@ export default function Home() {
                 onClick={handleLakeConfirmYes}
                 sx={{ minWidth: '120px' }}
               >
-                Yes, I'm on the lake
+                Yes, I&apos;m on the lake
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {isSubmitFormOpen && (
+      {(isSubmitFormOpen || newReportRequested) && (
         <SubmitReportForm
-          onClose={() => setIsSubmitFormOpen(false)}
+          onClose={closeSubmitForm}
           onSubmit={handleSubmitReport}
         />
       )}

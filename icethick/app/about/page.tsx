@@ -18,12 +18,10 @@ export default function AboutPage() {
     <div style={pageStyles.container}>
       <Header 
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>
@@ -89,7 +87,7 @@ export default function AboutPage() {
                 padding: '1.5rem'
               }}>
                 <p style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: '1.05rem', color: 'var(--accent-danger)' }}>
-                  ⚠️ All Reports Are User-Submitted and Unverified
+                   All Reports Are User-Submitted and Unverified
                 </p>
                 <ul style={{ marginLeft: '1.5rem', marginBottom: '1rem', lineHeight: '1.8' }}>
                   <li><strong>Community-Sourced:</strong> All ice thickness data is submitted by individuals like you and cannot be independently verified</li>
@@ -109,15 +107,8 @@ export default function AboutPage() {
                 Get Involved
               </h2>
               <p style={{ marginBottom: '1rem' }}>
-                Ice Relay is an open-source project created by{' '}
-                <a 
-                  href="https://AustinStephens.me"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: 'var(--primary-dark)', fontWeight: 600 }}
-                >
-                  Austin Stephens
-                </a>. If you&apos;d like to contribute, report issues, or request features, please visit our{' '}
+                Ice Relay is an open-source project created by AS.
+                {' '}If you&apos;d like to contribute, report issues, or request features, please visit our{' '}
                 <a 
                   href="https://github.com/Austtiin/IceRelay"
                   target="_blank"

@@ -1,51 +1,73 @@
 // Google Analytics utility functions
-// Tracking ID: G-WBV3R0RG7F
+type AnalyticsValue = string | number | Date | Record<string, unknown>;
+type ClarityFunction = ((...args: AnalyticsValue[]) => void) & { q?: AnalyticsValue[][] };
 
 declare global {
   interface Window {
-    dataLayer: any[];
-    gtag: (...args: any[]) => void;
+    dataLayer: AnalyticsValue[][];
+    gtag: (...args: AnalyticsValue[]) => void;
+    clarity?: ClarityFunction;
   }
 }
 
-export const GA_TRACKING_ID = 'G-WBV3R0RG7F';
+export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+export const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
 
-// Initialize Google Analytics
-export const initializeAnalytics = () => {
+const initializeGoogleAnalytics = () => {
+  if (!GA_TRACKING_ID) return;
   if (typeof window === 'undefined') return;
 
-  // Check if already initialized by looking for the script
   const existingScript = document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`);
-  if (existingScript) {
-    console.log('[Analytics] Google Analytics already initialized');
-    return;
-  }
+  if (existingScript) return;
 
-  // Initialize dataLayer
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag() {
-    window.dataLayer.push(arguments);
+  window.gtag = (...args) => {
+    window.dataLayer.push(args);
   };
 
-  // Load the gtag script
   const script = document.createElement('script');
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`;
   document.head.appendChild(script);
 
-  // Initialize gtag
   script.onload = () => {
     window.gtag('js', new Date());
     window.gtag('config', GA_TRACKING_ID, {
       page_path: window.location.pathname,
     });
-    console.log('[Analytics] Google Analytics initialized successfully');
   };
+};
+
+const initializeClarity = () => {
+  if (!CLARITY_PROJECT_ID || typeof window === 'undefined') return;
+
+  const existingScript = document.querySelector('script[data-clarity-project]');
+  if (existingScript) return;
+
+  if (!window.clarity) {
+    const clarity: ClarityFunction = (...args) => {
+      clarity.q?.push(args);
+    };
+    clarity.q = [];
+    window.clarity = clarity;
+  }
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.clarity.ms/tag/${encodeURIComponent(CLARITY_PROJECT_ID)}`;
+  script.dataset.clarityProject = CLARITY_PROJECT_ID;
+  document.head.appendChild(script);
+};
+
+// Analytics scripts are initialized only after the visitor grants consent.
+export const initializeAnalytics = () => {
+  initializeGoogleAnalytics();
+  initializeClarity();
 };
 
 // Track page views
 export const trackPageView = (url: string) => {
-  if (typeof window !== 'undefined' && window.gtag) {
+  if (GA_TRACKING_ID && typeof window !== 'undefined' && window.gtag) {
     window.gtag('config', GA_TRACKING_ID, {
       page_path: url,
     });
@@ -60,7 +82,7 @@ export const trackEvent = (
   label?: string,
   value?: number
 ) => {
-  if (typeof window !== 'undefined' && window.gtag) {
+  if (GA_TRACKING_ID && typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', action, {
       event_category: category,
       event_label: label,

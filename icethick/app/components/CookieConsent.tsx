@@ -1,39 +1,69 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { initializeAnalytics, hasAnalyticsConsent } from '../lib/analytics';
+import { useEffect, useSyncExternalStore } from 'react';
+import { initializeAnalytics } from '../lib/analytics';
+import Link from 'next/link';
+
+const CONSENT_STORAGE_KEY = 'ice-relay-analytics-consent';
+const CONSENT_CHANGE_EVENT = 'ice-relay-analytics-consent-change';
+
+type AnalyticsConsent = 'unanswered' | 'accepted' | 'declined';
+
+const getConsentSnapshot = (): AnalyticsConsent => {
+  const consent = localStorage.getItem(CONSENT_STORAGE_KEY);
+  return consent === 'accepted' || consent === 'declined' ? consent : 'unanswered';
+};
+
+const getServerConsentSnapshot = (): AnalyticsConsent => 'unanswered';
+
+const subscribeToConsent = (onStoreChange: () => void) => {
+  const handleStorageChange = (event: StorageEvent) => {
+    if (event.key === null || event.key === CONSENT_STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener('storage', handleStorageChange);
+  window.addEventListener(CONSENT_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+    window.removeEventListener(CONSENT_CHANGE_EVENT, onStoreChange);
+  };
+};
 
 export default function CookieConsent() {
-  const [isVisible, setIsVisible] = useState(false);
+  const consent = useSyncExternalStore(
+    subscribeToConsent,
+    getConsentSnapshot,
+    getServerConsentSnapshot
+  );
 
   useEffect(() => {
-    // Check if user has already consented
-    if (typeof window !== 'undefined') {
-      const hasConsented = localStorage.getItem('ice-relay-analytics-consent');
-      if (!hasConsented) {
-        setIsVisible(true);
-      } else if (hasConsented === 'accepted') {
-        // Initialize analytics if previously accepted
-        initializeAnalytics();
-      }
+    if (consent === 'accepted') {
+      initializeAnalytics();
     }
-  }, []);
+  }, [consent]);
+
+  const saveConsent = (value: Exclude<AnalyticsConsent, 'unanswered'>) => {
+    localStorage.setItem(CONSENT_STORAGE_KEY, value);
+    window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
+  };
 
   const handleAccept = () => {
-    localStorage.setItem('ice-relay-analytics-consent', 'accepted');
-    setIsVisible(false);
-    initializeAnalytics();
+    saveConsent('accepted');
   };
 
   const handleDecline = () => {
-    localStorage.setItem('ice-relay-analytics-consent', 'declined');
-    setIsVisible(false);
+    saveConsent('declined');
   };
 
-  if (!isVisible) return null;
+  if (consent !== 'unanswered') return null;
 
   return (
     <div
+      role="region"
+      aria-label="Privacy and analytics choices"
       style={{
         position: 'fixed',
         bottom: '1rem',
@@ -58,8 +88,16 @@ export default function CookieConsent() {
         color: '#495867',
         lineHeight: '1.5'
       }}>
-        🍪 We use cookies to improve your experience and analyze site usage. 
-        By clicking "Accept", you agree to our use of analytics.
+        Essential storage remembers your privacy choice. Choose &quot;Accept all&quot;
+        to also allow Google Analytics and Microsoft Clarity, if configured, or
+        &quot;Essential only&quot; to keep optional analytics off.
+        {' '}By using Ice Relay, you agree to our{' '}
+        <Link href="/terms/" style={{ textDecoration: 'underline' }}>Terms of Use</Link>.
+        {' '}Read our{' '}
+        <Link href="/privacy-policy/" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>
+        {' '}and{' '}
+        <Link href="/cookie-policy/" style={{ textDecoration: 'underline' }}>Cookie Policy</Link>
+        {' '}for details.
       </div>
       
       <div style={{
@@ -85,7 +123,7 @@ export default function CookieConsent() {
           onMouseOver={(e) => e.currentTarget.style.background = 'var(--primary-dark)'}
           onMouseOut={(e) => e.currentTarget.style.background = 'var(--primary-medium)'}
         >
-          Accept
+          Accept all
         </button>
         <button
           onClick={handleDecline}
@@ -111,7 +149,7 @@ export default function CookieConsent() {
             e.currentTarget.style.borderColor = '#dee2e6';
           }}
         >
-          Decline
+          Essential only
         </button>
       </div>
 

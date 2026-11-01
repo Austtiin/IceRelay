@@ -19,12 +19,10 @@ export default function CookiePolicyPage() {
     <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>
@@ -60,8 +58,8 @@ export default function CookiePolicyPage() {
               How We Use Cookies
             </h2>
             <ul style={{ marginLeft: '1.5rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-              <li>To remember basic preferences and improve your experience.</li>
-              <li>To measure anonymous traffic and usage patterns.</li>
+              <li>Essential local storage remembers whether you selected &quot;Essential only&quot; or &quot;Accept all&quot;.</li>
+              <li>Optional Google Analytics and Microsoft Clarity, when configured, load only after you select &quot;Accept all&quot;.</li>
               <li>To support security and prevent abuse.</li>
             </ul>
           </section>
@@ -73,6 +71,8 @@ export default function CookiePolicyPage() {
             <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
               Most browsers let you control cookies through their settings, including blocking or deleting them.
               If you disable cookies, some parts of Ice Relay may not work as intended.
+              {' '}Choose &quot;Essential only&quot; in the banner to decline optional analytics.
+              To choose again, clear this site&apos;s local storage and reload the homepage.
             </p>
           </section>
 

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://www.icerelay.app/sitemap.xml
+Sitemap: https://icerelay.net/sitemap.xml

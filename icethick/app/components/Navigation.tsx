@@ -2,14 +2,23 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { warmMapConnection } from '../../lib/map-preload';
 
 interface NavigationProps {
   isOpen: boolean;
   onClose: () => void;
-  onNewReport: () => void;
+  onNewReport?: () => void;
 }
 
 export default function Navigation({ isOpen, onClose, onNewReport }: NavigationProps) {
+  const router = useRouter();
+  const preloadMap = () => {
+    warmMapConnection();
+    router.prefetch('/map/');
+  };
+  const handleNewReport = onNewReport ?? (() => router.push('/?newReport=true'));
+
   // Prevent body scroll when menu is open
   useEffect(() => {
     if (isOpen) {
@@ -17,7 +26,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
     } else {
       document.body.style.overflow = '';
     }
-    
+
     return () => {
       document.body.style.overflow = '';
     };
@@ -68,8 +77,8 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <h2 style={{ 
-              fontSize: '1.25rem', 
+            <h2 style={{
+              fontSize: '1.25rem',
               fontWeight: 700,
               color: 'var(--primary-dark)'
             }}>
@@ -113,7 +122,6 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span style={{ fontSize: '1.25rem' }}>🏠</span>
             <span style={{ fontWeight: 500 }}>Home</span>
           </Link>
 
@@ -134,13 +142,14 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span style={{ fontSize: '1.25rem' }}>📍</span>
-            <span style={{ fontWeight: 500 }}>View Ice Near Me</span>
+            <span style={{ fontWeight: 500 }}>Explore reports</span>
           </Link>
 
           <Link
-            href="/map"
+            href="/map/"
             onClick={onClose}
+            onFocus={preloadMap}
+            onTouchStart={preloadMap}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -152,16 +161,18 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
               transition: 'background 0.2s',
               marginBottom: '0.5rem'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#f8f9fa';
+              preloadMap();
+            }}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span style={{ fontSize: '1.25rem' }}>🗺️</span>
-            <span style={{ fontWeight: 500 }}>Map View</span>
+            <span style={{ fontWeight: 500 }}>Map</span>
           </Link>
 
           <button
             onClick={() => {
-              onNewReport();
+              handleNewReport();
               onClose();
             }}
             style={{
@@ -190,8 +201,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
               e.currentTarget.style.transform = 'translateX(0)';
             }}
           >
-            <span style={{ fontSize: '1.25rem' }}>📝</span>
-            <span>New Report</span>
+            <span>Share a report</span>
           </button>
 
           <div style={{
@@ -219,7 +229,6 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span style={{ fontSize: '1.1rem' }}>❄️</span>
             <span style={{ fontWeight: 500 }}>Safety Guide</span>
           </Link>
 
@@ -241,7 +250,6 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
             <span style={{ fontWeight: 500 }}>About</span>
           </Link>
 
@@ -263,7 +271,6 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span style={{ fontSize: '1.1rem' }}>📧</span>
             <span style={{ fontWeight: 500 }}>Contact</span>
           </Link>
 
@@ -285,7 +292,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
             onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <span>📦</span>
+
             <span>Created by @Austtiin</span>
           </a>
         </div>

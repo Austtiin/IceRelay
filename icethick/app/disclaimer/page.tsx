@@ -17,14 +17,12 @@ export default function DisclaimerPage() {
 
   return (
     <div style={pageStyles.container}>
-      <Header 
+      <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
-      <Navigation 
-        isOpen={isMenuOpen} 
+      <Navigation
+        isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>
@@ -45,7 +43,7 @@ export default function DisclaimerPage() {
               alignItems: 'center',
               gap: '0.5rem'
             }}>
-              ⚠️ Legal Disclaimer & Terms of Use
+               Legal Disclaimer & Terms of Use
             </h1>
           </div>
 
@@ -55,9 +53,9 @@ export default function DisclaimerPage() {
                 Use at Your Own Risk
               </h2>
               <p style={{ marginBottom: '1rem', fontSize: '1.05rem' }}>
-                <strong>ICE RELAY IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTY OF ANY KIND.</strong> All information 
-                provided through this application is for informational purposes only. The creators, contributors, 
-                maintainers, and operators of Ice Relay assume <strong>NO LIABILITY</strong> for any injuries, 
+                <strong>ICE RELAY IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTY OF ANY KIND.</strong> All information
+                provided through this application is for informational purposes only. The creators, contributors,
+                maintainers, and operators of Ice Relay assume <strong>NO LIABILITY</strong> for any injuries,
                 damages, property loss, death, or any other consequences resulting from the use of this information.
               </p>
             </section>
@@ -74,7 +72,7 @@ export default function DisclaimerPage() {
                 marginBottom: '1rem'
               }}>
                 <p style={{ marginBottom: '1rem', fontWeight: 600 }}>
-                  All ice thickness reports on Ice Relay are submitted by community members and are <strong>NOT</strong> verified, 
+                  All ice thickness reports on Ice Relay are submitted by community members and are <strong>NOT</strong> verified,
                   validated, or endorsed by Ice Relay.
                 </p>
               </div>
@@ -90,7 +88,7 @@ export default function DisclaimerPage() {
                 <li><strong>Malicious:</strong> Despite our spam prevention efforts, false reports may still be submitted</li>
               </ul>
               <p style={{ marginTop: '1rem', fontWeight: 600, color: 'var(--accent-danger)' }}>
-                ⚠️ Do not trust reports blindly. Always perform your own ice thickness measurements at multiple locations 
+                 Do not trust reports blindly. Always perform your own ice thickness measurements at multiple locations
                 before venturing onto any ice surface. What is reported safe at one location can be dangerously thin just feet away.
               </p>
             </section>
@@ -118,7 +116,7 @@ export default function DisclaimerPage() {
                 No Professional Advice
               </h2>
               <p style={{ marginBottom: '1rem' }}>
-                Ice Relay does <strong>NOT</strong> provide professional ice safety assessments, recommendations, or 
+                Ice Relay does <strong>NOT</strong> provide professional ice safety assessments, recommendations, or
                 certifications. This platform is <strong>NOT</strong> a substitute for:
               </p>
               <ul style={{ marginLeft: '1.5rem', marginBottom: '1rem' }}>
@@ -134,7 +132,7 @@ export default function DisclaimerPage() {
                 Limitation of Liability
               </h2>
               <p style={{ marginBottom: '1rem' }}>
-                TO THE MAXIMUM EXTENT PERMITTED BY LAW, the creators, contributors, maintainers, and operators 
+                TO THE MAXIMUM EXTENT PERMITTED BY LAW, the creators, contributors, maintainers, and operators
                 of Ice Relay shall NOT be liable for any:
               </p>
               <ul style={{ marginLeft: '1.5rem', marginBottom: '1rem' }}>
@@ -182,7 +180,7 @@ export default function DisclaimerPage() {
                 Changes to Terms
               </h2>
               <p style={{ marginBottom: '1rem' }}>
-                These terms may be updated at any time without notice. Continued use of Ice Relay constitutes 
+                These terms may be updated at any time without notice. Continued use of Ice Relay constitutes
                 acceptance of any changes to these terms.
               </p>
             </section>
@@ -198,8 +196,8 @@ export default function DisclaimerPage() {
                   Final Warning
                 </h2>
                 <p style={{ fontSize: '1.05rem', fontWeight: 500 }}>
-                  No ice is 100% safe. Ice conditions are unpredictable and can be deadly. If you choose to go 
-                  on the ice, you do so entirely at your own risk. Ice Relay is a community tool, not a safety 
+                  No ice is 100% safe. Ice conditions are unpredictable and can be deadly. If you choose to go
+                  on the ice, you do so entirely at your own risk. Ice Relay is a community tool, not a safety
                   guarantee. <strong>WHEN IN DOUBT, STAY OFF THE ICE.</strong>
                 </p>
               </div>
@@ -207,7 +205,7 @@ export default function DisclaimerPage() {
 
             <section style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '2px solid #e9ecef' }}>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                Last updated: {lastUpdated}
               </p>
             </section>
           </div>

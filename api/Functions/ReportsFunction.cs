@@ -6,7 +6,6 @@ using System.Text.Json;
 using IceRelay.Api.Models;
 using IceRelay.Api.Helpers;
 using Microsoft.Data.SqlClient;
-using System.Security.Cryptography;
 
 namespace IceRelay.Api.Functions;
 
@@ -23,6 +22,9 @@ public class ReportsFunction
     public async Task<HttpResponseData> GetReports(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports")] HttpRequestData req)
     {
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+
         _logger.LogInformation("Getting all ice reports");
 
         try
@@ -159,6 +161,9 @@ public class ReportsFunction
     public async Task<HttpResponseData> GetReportsInBounds(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/bounds")] HttpRequestData req)
     {
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+
         _logger.LogInformation("Getting reports within map bounds");
 
         try
@@ -291,27 +296,9 @@ public class ReportsFunction
     {
         _logger.LogInformation("Creating new ice report");
 
-        // Get IP address for rate limiting
-        var ipAddress = req.Headers.TryGetValues("X-Forwarded-For", out var values) 
-            ? values.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim() ?? "unknown"
-            : "unknown";
-
-        // Check rate limits
-        if (RateLimiter.IsRateLimited(ipAddress, out var rateLimitError))
-        {
-            _logger.LogWarning($"Rate limit exceeded for IP: {ipAddress}");
-            var errorResponse = req.CreateResponse(HttpStatusCode.TooManyRequests);
-            await errorResponse.WriteStringAsync(rateLimitError!);
-            return errorResponse;
-        }
-
-        if (!RateLimiter.CanSubmitReport(ipAddress, out var reportLimitError))
-        {
-            _logger.LogWarning($"Report submission limit exceeded for IP: {ipAddress}");
-            var errorResponse = req.CreateResponse(HttpStatusCode.TooManyRequests);
-            await errorResponse.WriteStringAsync(reportLimitError!);
-            return errorResponse;
-        }
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+        var ipAddress = GetClientIpAddress(req);
 
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         var reportRequest = JsonSerializer.Deserialize<CreateReportRequest>(requestBody, new JsonSerializerOptions
@@ -332,15 +319,6 @@ public class ReportsFunction
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
             await badResponse.WriteStringAsync("Latitude and Longitude are required");
             return badResponse;
-        }
-
-        // Check for duplicate location
-        if (RateLimiter.IsRecentDuplicate(ipAddress, reportRequest.Latitude, reportRequest.Longitude, out var duplicateError))
-        {
-            _logger.LogWarning($"Duplicate report detected for IP: {ipAddress}");
-            var errorResponse = req.CreateResponse(HttpStatusCode.Conflict);
-            await errorResponse.WriteStringAsync(duplicateError!);
-            return errorResponse;
         }
 
         if (reportRequest.Thickness < 0 || reportRequest.Thickness > 50)
@@ -396,6 +374,23 @@ public class ReportsFunction
                 return badResponse;
             }
             cleanedNotes = notesValidation.CleanedText;
+        }
+
+        if (!RateLimiter.CanSubmitReport(ipAddress, out var reportLimitError))
+        {
+            _logger.LogWarning("Report submission limit exceeded");
+            var errorResponse = req.CreateResponse(HttpStatusCode.TooManyRequests);
+            await errorResponse.WriteStringAsync(reportLimitError!);
+            errorResponse.Headers.Add("Retry-After", "3600");
+            return errorResponse;
+        }
+
+        if (RateLimiter.IsRecentDuplicate(ipAddress, reportRequest.Latitude, reportRequest.Longitude, out var duplicateError))
+        {
+            _logger.LogWarning("Duplicate report detected");
+            var errorResponse = req.CreateResponse(HttpStatusCode.Conflict);
+            await errorResponse.WriteStringAsync(duplicateError!);
+            return errorResponse;
         }
 
         try
@@ -506,8 +501,7 @@ public class ReportsFunction
                 Method = reportRequest.Method,
                 IceQuality = reportRequest.IceQuality,
                 Notes = cleanedNotes,
-                CreatedAt = createdAt ?? DateTime.UtcNow,
-                IpAddress = ipAddress
+                CreatedAt = createdAt ?? DateTime.UtcNow
             };
 
             var response = req.CreateResponse(HttpStatusCode.Created);
@@ -532,15 +526,16 @@ public class ReportsFunction
 
     private static string GenerateSessionHash(string ipAddress)
     {
-        using var sha256 = SHA256.Create();
-        var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(ipAddress));
-        return Convert.ToBase64String(hashBytes)[..16]; // Take first 16 chars
+        return RateLimiter.HashClientIdentifier(ipAddress);
     }
 
     [Function("GetNearbyReports")]
     public async Task<HttpResponseData> GetNearbyReports(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "reports/nearby")] HttpRequestData req)
     {
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+
         _logger.LogInformation("Getting nearby ice reports");
 
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -584,6 +579,9 @@ public class ReportsFunction
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/lake/{lakeName}")] HttpRequestData req,
         string lakeName)
     {
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+
         _logger.LogInformation($"Getting reports for lake: {lakeName}");
 
         // TODO: Query Cosmos DB by lake name
@@ -610,6 +608,9 @@ public class ReportsFunction
     public async Task<HttpResponseData> DetectLakeByLocation(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "reports/detect-lake")] HttpRequestData req)
     {
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+
         _logger.LogInformation("Detecting lake by GPS coordinates");
 
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -758,6 +759,9 @@ public class ReportsFunction
     public async Task<HttpResponseData> SearchLakeNames(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/search-lakes")] HttpRequestData req)
     {
+        var rateLimitResponse = await ApplyRequestRateLimit(req);
+        if (rateLimitResponse is not null) return rateLimitResponse;
+
         _logger.LogInformation("Searching lake names");
 
         var query = req.Query["q"] ?? "";
@@ -849,5 +853,36 @@ public class ReportsFunction
     private static double DegreesToRadians(double degrees)
     {
         return degrees * Math.PI / 180.0;
+    }
+
+    private static string GetClientIpAddress(HttpRequestData req)
+    {
+        if (!req.Headers.TryGetValues("X-Forwarded-For", out var values))
+        {
+            return "unknown";
+        }
+
+        var forwardedChain = values.FirstOrDefault();
+        var lastAddress = forwardedChain?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
+
+        return IPAddress.TryParse(lastAddress, out var address)
+            ? address.ToString()
+            : "unknown";
+    }
+
+    private static async Task<HttpResponseData?> ApplyRequestRateLimit(HttpRequestData req)
+    {
+        var ipAddress = GetClientIpAddress(req);
+        if (!RateLimiter.IsRateLimited(ipAddress, out var errorMessage))
+        {
+            return null;
+        }
+
+        var response = req.CreateResponse(HttpStatusCode.TooManyRequests);
+        response.Headers.Add("Retry-After", "60");
+        await response.WriteStringAsync(errorMessage!);
+        return response;
     }
 }

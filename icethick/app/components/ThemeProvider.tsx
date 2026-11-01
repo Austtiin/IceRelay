@@ -2,13 +2,17 @@
 
 import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import createCache from '@emotion/cache';
+import { CacheProvider } from '@emotion/react';
+import { useState } from 'react';
+import { useServerInsertedHTML } from 'next/navigation';
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#577399', // Ice Relay primary blue
-      dark: '#495867',
-      light: '#BDD4E7',
+      main: '#426b8c',
+      dark: '#18364f',
+      light: '#c6d9e8',
     },
     secondary: {
       main: '#FE5F55', // Danger/accent red
@@ -30,7 +34,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif',
     h1: {
       fontWeight: 700,
       fontSize: '3rem',
@@ -62,9 +66,9 @@ const theme = createTheme({
           fontSize: '1rem',
         },
         contained: {
-          boxShadow: '0 4px 12px rgba(87, 115, 153, 0.3)',
+          boxShadow: 'none',
           '&:hover': {
-            boxShadow: '0 6px 16px rgba(87, 115, 153, 0.4)',
+            boxShadow: 'none',
           },
         },
       },
@@ -81,10 +85,73 @@ const theme = createTheme({
 });
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [{ cache, flush }] = useState(() => {
+    const cache = createCache({ key: 'mui' });
+    cache.compat = true;
+    const insert = cache.insert;
+    let pending: { name: string; global: boolean }[] = [];
+
+    cache.insert = (...args) => {
+      const [selector, serialized] = args;
+      if (cache.inserted[serialized.name] === undefined) {
+        pending.push({ name: serialized.name, global: selector === '' });
+      }
+      return insert(...args);
+    };
+
+    return {
+      cache,
+      flush: () => {
+        const styles = pending;
+        pending = [];
+        return styles;
+      },
+    };
+  });
+
+  // Emit server-generated styles outside the hydrating component tree.
+  useServerInsertedHTML(() => {
+    const pending = flush();
+    if (pending.length === 0) return null;
+
+    let css = '';
+    let names = '';
+    const globals = [];
+    for (const entry of pending) {
+      const style = cache.inserted[entry.name];
+      if (typeof style !== 'string') {
+        throw new Error(`Missing server-rendered Emotion CSS: ${entry.name}`);
+      }
+      if (entry.global) {
+        globals.push(
+          <style
+            key={entry.name}
+            data-emotion={`${cache.key}-global ${entry.name}`}
+            dangerouslySetInnerHTML={{ __html: style }}
+          />
+        );
+      } else {
+        names += ` ${entry.name}`;
+        css += style;
+      }
+    }
+
+    return (
+      <>
+        {globals}
+        {css && (
+          <style data-emotion={`${cache.key}${names}`} dangerouslySetInnerHTML={{ __html: css }} />
+        )}
+      </>
+    );
+  });
+
   return (
-    <MuiThemeProvider theme={theme}>
-      <CssBaseline />
-      {children}
-    </MuiThemeProvider>
+    <CacheProvider value={cache}>
+      <MuiThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+      </MuiThemeProvider>
+    </CacheProvider>
   );
 }

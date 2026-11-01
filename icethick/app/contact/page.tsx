@@ -18,12 +18,10 @@ export default function ContactPage() {
     <div style={pageStyles.container}>
       <Header
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => {}}
       />
       <Navigation
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => {}}
       />
 
       <main style={pageStyles.main}>
@@ -54,18 +52,7 @@ export default function ContactPage() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.5rem'
-                }}>
-                  🐛
-                </div>
+
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--primary-dark)', margin: 0 }}>
                   Report Issues & Request Features
                 </h2>
@@ -112,27 +99,16 @@ export default function ContactPage() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #577399 0%, #495867 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.5rem'
-                }}>
-                  👨‍💻
-                </div>
+
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--primary-dark)', margin: 0 }}>
                   About the Creator
                 </h2>
               </div>
               <p style={{ marginBottom: '1rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>
-                Ice Relay is created and maintained by Austin Stephens. Visit my website to learn more about my other projects and connect with me.
+                Ice Relay is created and maintained by AS. Visit GitHub to explore other projects and connect.
               </p>
               <a
-                href="https://AustinStephens.me"
+                href="https://github.com/Austtiin"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="creator-website-button"
@@ -149,7 +125,7 @@ export default function ContactPage() {
                   transition: 'background 0.2s'
                 }}
               >
-                Visit AustinStephens.me →
+                Visit GitHub
               </a>
               <style jsx>{`
                 .creator-website-button:hover {
@@ -167,18 +143,7 @@ export default function ContactPage() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #F7A93D 0%, #FF8C42 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.5rem'
-                }}>
-                  🤝
-                </div>
+
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--primary-dark)', margin: 0 }}>
                   Contribute on GitHub
                 </h2>
@@ -187,11 +152,11 @@ export default function ContactPage() {
                 Ice Relay is an open-source project. We welcome contributions from developers, designers, and anyone passionate about ice safety.
               </p>
               <ul style={{ marginLeft: '1.5rem', color: 'var(--text-primary)', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-                <li>⭐ Star the repository</li>
-                <li>🐛 Report bugs and issues</li>
-                <li>💡 Suggest new features</li>
-                <li>🔧 Contribute code improvements</li>
-                <li>📖 Help improve documentation</li>
+                <li> Star the repository</li>
+                <li> Report bugs and issues</li>
+                <li> Suggest new features</li>
+                <li> Contribute code improvements</li>
+                <li> Help improve documentation</li>
               </ul>
               <a
                 href="https://github.com/Austtiin/IceRelay"
@@ -230,7 +195,7 @@ export default function ContactPage() {
             marginTop: '2rem'
           }}>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
-              <strong>⚠️ Safety First:</strong> For urgent safety concerns or emergencies, please contact local authorities or emergency services immediately (911).
+              <strong> Safety First:</strong> For urgent safety concerns or emergencies, please contact local authorities or emergency services immediately (911).
             </p>
           </div>
         </div>

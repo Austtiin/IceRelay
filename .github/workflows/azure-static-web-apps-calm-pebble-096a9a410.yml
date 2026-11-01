@@ -15,24 +15,37 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           submodules: true
           lfs: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20.x'
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: icethick/package-lock.json
       - name: Install dependencies
         run: |
           cd icethick
           npm ci
       - name: Build Next.js app
         env:
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+          NEXT_PUBLIC_CLARITY_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_CLARITY_PROJECT_ID }}
         run: |
           cd icethick
+          if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+            echo "::error::Set the NEXT_PUBLIC_API_URL repository secret to the public API endpoint before deploying."
+            exit 1
+          fi
+          if [ -z "$NEXT_PUBLIC_MAPBOX_TOKEN" ] || [[ "$NEXT_PUBLIC_MAPBOX_TOKEN" != pk.* ]]; then
+            echo "::error::Set NEXT_PUBLIC_MAPBOX_TOKEN to a public Mapbox token (pk.) before deploying."
+            exit 1
+          fi
           echo "Building with environment variables (values hidden for security)"
           npm run build
       - name: Build And Deploy

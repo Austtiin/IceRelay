@@ -1,58 +1,17 @@
 import type { Metadata } from "next";
 import React from "react";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "./components/ThemeProvider";
 import AnalyticsProvider from "./components/AnalyticsProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Ice Relay | Ice Thickness Near Me in Minnesota & Midwest Lakes",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://icerelay.net"),
+  title: "Ice Relay | Community Ice Thickness Reports Across the Upper Midwest",
   description:
-    "Check live, community-reported ice thickness near you across Minnesota and the Upper Midwest. See recent lake ice reports to stay safe for ice fishing, skating, and winter travel.",
-  keywords: [
-    "ice thickness near me",
-    "ice thickness mn",
-    "ice thickness minnesota",
-    "ice thickness wi",
-    "ice thickness wisconsin",
-    "ice thickness sd",
-    "ice thickness south dakota",
-    "ice thickness chart",
-    "ice thickness reports",
-    "community reported ice thickness",
-    "safe ice thickness",
-    "ice fishing safety tips",
-    "ice fishing ice thickness",
-    "current ice conditions",
-    "snow depth and ice thickness",
-    "ice thickness vs ice safety",
-    "minnesota ice thickness",
-    "midwest ice thickness",
-    "lake ice conditions",
-    "ice fishing reports",
-    "mn lake ice reports",
-    "wisconsin ice thickness",
-    "ice safety",
-    "winter lake conditions",
-    "how thick should ice be",
-    "ice thickness for fishing",
-    "ice relay",
-    "mn ice reports",
-    "wi ice reports",
-    "sd ice reports",
-    "ice thickness map",
-    "real time ice conditions"
-  ],
+    "Explore community-submitted ice thickness reports across Minnesota, Wisconsin, Michigan, Iowa, North Dakota, and South Dakota. Reports are unverified and are not a safety assessment.",
+  alternates: {
+    canonical: "/",
+  },
   robots: {
     index: true,
     follow: true,
@@ -64,24 +23,29 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    // Add your Google Search Console verification code here when you get it
-    // google: 'your-verification-code',
-  },
   openGraph: {
-    title: "Ice Relay | Ice Thickness Near Me in Minnesota & Midwest Lakes",
+    title: "Ice Relay | Community Ice Thickness Reports Across the Upper Midwest",
     description:
-      "Crowdsourced ice thickness near you for Minnesota and Midwest lakes. View recent ice reports, map views, and safety-focused ice conditions.",
-    url: "https://www.icerelay.app/",
+      "Crowdsourced ice thickness reports for Upper Midwest lakes. View recent reports, map views, and local ice safety resources.",
+    url: "/",
     siteName: "Ice Relay",
     locale: "en_US",
-    type: "website"
+    type: "website",
+    images: [
+      {
+        url: "/HomeHero.jpg",
+        width: 1519,
+        height: 1016,
+        alt: "Ice-covered lake in winter",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ice Relay | Ice Thickness Near Me",
+    title: "Ice Relay | Community Ice Thickness Reports",
     description:
-      "See up-to-date ice thickness near you across Minnesota and the Midwest from real lake reports.",
+      "See recent community-submitted ice thickness reports across the Upper Midwest. Reports are unverified.",
+    images: ["/HomeHero.jpg"],
   },
 };
 
@@ -92,9 +56,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <ThemeProvider>
           <AnalyticsProvider>
             <React.StrictMode>

@@ -1,58 +1,96 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Notification, { NotificationType } from '../components/Notification';
 import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import SubmitReportForm from '../components/SubmitReportForm';
+import type { ReportData } from '../components/SubmitReportForm';
 import AdBox from '../components/AdBox';
+import { api } from '../../lib/api';
+import type { LakeSuggestion } from '../../lib/api';
+import { iceCoverageStates } from '../../lib/ice-coverage';
+import { trackReportSubmission } from '../lib/analytics';
 
 export default function NearMePage() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitFormOpen, setIsSubmitFormOpen] = useState(false);
   const [showLakeConfirmation, setShowLakeConfirmation] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: NotificationType } | null>(null);
   const [lakeSearch, setLakeSearch] = useState('');
-  const [lakeSuggestions, setLakeSuggestions] = useState<any[]>([]);
+  const [lakeSuggestions, setLakeSuggestions] = useState<LakeSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [lakeSearchError, setLakeSearchError] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const latestSearchId = useRef(0);
 
   const handleLakeSearchChange = async (value: string) => {
     setLakeSearch(value);
+    const searchId = ++latestSearchId.current;
 
     if (value.trim().length < 2) {
       setLakeSuggestions([]);
       setShowSuggestions(false);
+      setLakeSearchError(false);
+      setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
+    setLakeSearchError(false);
     try {
-      const { api } = await import('../../lib/api');
       const results = await api.searchLakes(value);
+      if (searchId !== latestSearchId.current) return;
       setLakeSuggestions(results.slice(0, 10));
       setShowSuggestions(true);
     } catch (error) {
       console.error('[NearMe] Error searching lakes:', error);
+      if (searchId === latestSearchId.current) {
+        setLakeSuggestions([]);
+        setShowSuggestions(false);
+        setLakeSearchError(true);
+      }
     } finally {
-      setIsSearching(false);
+      if (searchId === latestSearchId.current) setIsSearching(false);
     }
   };
 
-  const handleLakeSelect = (lake: any) => {
-    const lakeName = lake.LakeName || lake.lakeName;
-    const lat = lake.Latitude || lake.latitude;
-    const lng = lake.Longitude || lake.longitude;
+  const handleLakeSelect = (lake: LakeSuggestion) => {
+    const lakeName = lake.LakeName || lake.lakeName || '';
+    const lat = lake.Latitude ?? lake.latitude;
+    const lng = lake.Longitude ?? lake.longitude;
 
     setLakeSearch(lakeName);
     setShowSuggestions(false);
 
-    if (lat && lng) {
-      // Auto-zoom to the lake location with zoom level 12
-      window.location.href = `/map?lake=${encodeURIComponent(lakeName)}&lat=${lat}&lng=${lng}&zoom=12`;
+    if (lat !== undefined && lng !== undefined) {
+      router.push(`/map?lake=${encodeURIComponent(lakeName)}&lat=${lat}&lng=${lng}&zoom=12`);
+    }
+  };
+
+  const handleSubmitReport = async (data: ReportData) => {
+    try {
+      await api.createReport(data);
+      trackReportSubmission(data.lake, data.thickness);
+      setNotification({
+        message: 'Your report was submitted. Thank you for sharing current conditions.',
+        type: 'success'
+      });
+      setIsSubmitFormOpen(false);
+    } catch (error) {
+      console.error('[NearMe] Error submitting report:', error);
+      setNotification({
+        message: error instanceof Error
+          ? `Could not submit report: ${error.message}`
+          : 'Could not submit report. Please try again.',
+        type: 'error'
+      });
+      throw error;
     }
   };
 
@@ -108,7 +146,7 @@ export default function NearMePage() {
               fontWeight: 700,
               marginBottom: '1rem'
             }}>
-              📍 Ice Thickness Near You
+               Ice Thickness Near You
             </h1>
             <p style={{
               fontSize: '1rem',
@@ -156,7 +194,7 @@ export default function NearMePage() {
                 marginBottom: '1rem',
                 textAlign: 'center'
               }}>
-                🔍 Search for a Specific Lake
+                 Search for a Specific Lake
               </h2>
               <div
                 ref={searchRef}
@@ -167,6 +205,7 @@ export default function NearMePage() {
                 }}
               >
                 <input
+                  aria-label="Search for a lake"
                   type="text"
                   value={lakeSearch}
                   onChange={(e) => handleLakeSearchChange(e.target.value)}
@@ -187,7 +226,7 @@ export default function NearMePage() {
                   }}
                 />
 
-                {(showSuggestions || isSearching) && lakeSearch.trim().length >= 2 && (
+                {(showSuggestions || isSearching || lakeSearchError) && lakeSearch.trim().length >= 2 && (
                   <div style={{
                     position: 'absolute',
                     top: 'calc(100% + 4px)',
@@ -273,9 +312,9 @@ export default function NearMePage() {
                             gap: '0.75rem',
                             flexWrap: 'wrap'
                           }}>
-                            <span>📊 {reportCount} report{reportCount !== 1 ? 's' : ''}</span>
-                            {lastReportText && <span>📅 Last: {lastReportText}</span>}
-                            {distanceKm !== undefined && <span>📍 {(distanceKm * 0.621371).toFixed(1)} mi away</span>}
+                            <span> {reportCount} report{reportCount !== 1 ? 's' : ''}</span>
+                            {lastReportText && <span> Last: {lastReportText}</span>}
+                            {distanceKm !== undefined && <span> {(distanceKm * 0.621371).toFixed(1)} mi away</span>}
                           </div>
                         </button>
                       );
@@ -288,19 +327,21 @@ export default function NearMePage() {
                         fontSize: '0.875rem',
                         color: 'var(--text-secondary)'
                       }}>
-                        No lakes found. Try a different search term.
+                        {lakeSearchError
+                          ? 'Lake search is unavailable right now. Please try again.'
+                          : "Don't see your lake listed?"}
                       </div>
                     )}
                   </div>
                 )}
 
-                {lakeSearch.trim().length >= 2 && !isSearching && lakeSuggestions.length === 0 && (
+                {lakeSearch.trim().length >= 2 && !isSearching && lakeSuggestions.length === 0 && !lakeSearchError && (
                   <p style={{
                     marginTop: '0.5rem',
                     fontSize: '0.85rem',
                     color: 'var(--text-secondary)'
                   }}>
-                    We either don't have a record yet or can't find the lake you're looking for. If you're on the lake right now,{' '}
+                    Don&apos;t see your lake listed? If you&apos;re at the lake, start a report to add it to the community list.{' '}
                     <button
                       type="button"
                       onClick={() => setShowLakeConfirmation(true)}
@@ -315,9 +356,8 @@ export default function NearMePage() {
                         cursor: 'pointer'
                       }}
                     >
-                      feel free to add a new report
+                      Add your lake
                     </button>
-                    .
                   </p>
                 )}
 
@@ -326,7 +366,7 @@ export default function NearMePage() {
                   fontSize: '0.8rem',
                   color: 'var(--text-secondary)'
                 }}>
-                  Can't find your lake? Try searching by common abbreviations or alternate names (e.g., "Lake of the Woods" as "LOW").
+                  Try common abbreviations or alternate names too (e.g., &quot;Lake of the Woods&quot; as &quot;LOW&quot;).
                 </p>
               </div>
             </div>
@@ -339,6 +379,58 @@ export default function NearMePage() {
               fontWeight: 600
             }}>
               - OR -
+            </div>
+            <div style={{
+              background: 'white',
+              padding: '1.5rem',
+              borderRadius: '1rem',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+              marginBottom: '1.5rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: 'var(--primary-dark)',
+                marginBottom: '0.5rem',
+                textAlign: 'center'
+              }}>
+                Explore reports by state
+              </h2>
+              <p style={{
+                color: 'var(--text-secondary)',
+                fontSize: '0.875rem',
+                lineHeight: 1.5,
+                textAlign: 'center',
+                marginBottom: '1rem'
+              }}>
+                Choose an Upper Midwest state to explore its map. Report coverage depends on community submissions.
+              </p>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '0.75rem'
+              }}>
+                {iceCoverageStates.map((state) => (
+                  <button
+                    key={state.code}
+                    type="button"
+                    onClick={() => router.push(`/map?lat=${state.latitude}&lng=${state.longitude}&zoom=6`)}
+                    style={{
+                      minHeight: '48px',
+                      padding: '0.75rem',
+                      border: '1px solid var(--primary-light)',
+                      borderRadius: '0.625rem',
+                      background: '#f8fbff',
+                      color: 'var(--primary-dark)',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {state.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -353,7 +445,6 @@ export default function NearMePage() {
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               textAlign: 'center'
             }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📍</div>
               <h2 style={{
                 fontSize: '1.25rem',
                 fontWeight: 700,
@@ -368,8 +459,8 @@ export default function NearMePage() {
                 lineHeight: '1.6',
                 fontSize: '0.9rem'
               }}>
-                To show ice thickness reports near you, we need access to your location. 
-                Your location is only used to find nearby reports and is never stored or shared.
+                Your location helps center the map. If you submit a report, its coordinates are stored with that public report.
+                Don&apos;t enable location or submit a report if you prefer not to share it.
               </p>
               <button
                 onClick={() => {
@@ -380,7 +471,7 @@ export default function NearMePage() {
                         console.log('Location:', position.coords);
                         const { latitude, longitude } = position.coords;
                         // Send the user straight to the map, centered on their location
-                        window.location.href = `/map?lat=${latitude}&lng=${longitude}&zoom=11`;
+                        router.push(`/map?lat=${latitude}&lng=${longitude}&zoom=11`);
                       },
                       (error) => {
                         setIsLoadingLocation(false);
@@ -499,7 +590,7 @@ export default function NearMePage() {
               textAlign: 'center',
               lineHeight: 1.6
             }}>
-              To keep reports accurate and trustworthy, please only submit a new report while you are physically on the lake you are measuring. We capture your GPS location with each report to verify this.
+              Please submit only while you are physically at the lake you are measuring. GPS coordinates provide location context, but do not independently verify the report or ice conditions.
             </p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <button
@@ -540,7 +631,7 @@ export default function NearMePage() {
                   fontWeight: 600
                 }}
               >
-                Yes, I'm on the lake
+                Yes, I&apos;m on the lake
               </button>
             </div>
           </div>
@@ -550,10 +641,7 @@ export default function NearMePage() {
       {isSubmitFormOpen && (
         <SubmitReportForm
           onClose={() => setIsSubmitFormOpen(false)}
-          onSubmit={async (data) => {
-            console.log('Report submitted:', data);
-            setIsSubmitFormOpen(false);
-          }}
+          onSubmit={handleSubmitReport}
         />
       )}
 

@@ -1,59 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.icerelay.app/</loc>
-    <changefreq>hourly</changefreq>
-    <priority>1.0</priority>
+    <loc>https://icerelay.net/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/near-me/</loc>
-    <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
+    <loc>https://icerelay.net/near-me/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/map/</loc>
-    <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
+    <loc>https://icerelay.net/map/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/safety-guide/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://icerelay.net/safety-guide/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/about/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://icerelay.net/about/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/contact/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://icerelay.net/contact/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/acceptable-use/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
+    <loc>https://icerelay.net/acceptable-use/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/disclaimer/</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://icerelay.net/disclaimer/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/privacy-policy/</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://icerelay.net/privacy-policy/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/terms/</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://icerelay.net/terms/</loc>
   </url>
   <url>
-    <loc>https://www.icerelay.app/cookie-policy/</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://icerelay.net/cookie-policy/</loc>
   </url>
 </urlset>

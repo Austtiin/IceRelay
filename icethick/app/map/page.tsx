@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useEffectEvent, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import Header from '../components/Header';
 import Navigation from '../components/Navigation';
-import Footer from '../components/Footer';
 import {CircularProgress, Typography, Box, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 interface Report {
   Id?: string;
@@ -30,6 +28,10 @@ interface Report {
   location?: string;
 }
 
+const subscribeToClient = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function MapPage() {
   const router = useRouter();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -37,14 +39,18 @@ export default function MapPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentZoom, setCurrentZoom] = useState(5);
-  const [isMounted, setIsMounted] = useState(false);
-  const [hasMapboxToken, setHasMapboxToken] = useState(false);
+  const isMounted = useSyncExternalStore(subscribeToClient, getClientSnapshot, getServerSnapshot);
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+  const hasMapboxToken = Boolean(mapboxToken);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 44.8, lng: -93.5 });
   const markers = useRef<mapboxgl.Marker[]>([]);
   const isAnimating = useRef(false);
+  const boundsRequest = useRef<AbortController | null>(null);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -61,21 +67,12 @@ export default function MapPage() {
 
   // Handle client-side mounting
   useEffect(() => {
-    setIsMounted(true);
-    // Set mapbox token on client side only
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
-    if (token) {
-      mapboxgl.accessToken = token;
-      setHasMapboxToken(true);
-      
-      // Disable Mapbox telemetry to prevent blocked requests
-      if (typeof mapboxgl.workerUrl === 'undefined') {
-        (mapboxgl as any).workerClass = undefined; // Prevents worker-related telemetry
-      }
-    } else {
+    if (!mapboxToken) {
       console.error('Mapbox token is not configured. Set NEXT_PUBLIC_MAPBOX_TOKEN before building.');
+    } else {
+      mapboxgl.accessToken = mapboxToken;
     }
-    
+
     // Check if mobile
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -83,128 +80,10 @@ export default function MapPage() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (!isMounted || !hasMapboxToken) return;
-    if (!mapContainer.current || map.current) return;
-
-    // Get URL params for initial position
-    const params = new URLSearchParams(window.location.search);
-    const lat = parseFloat(params.get('lat') || '44.8');
-    const lng = parseFloat(params.get('lng') || '-93.5');
-    const zoom = parseFloat(params.get('zoom') || '5');
-
-    // Initialize map
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [lng, lat],
-      zoom: zoom
-    });
-
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Soft limit to Midwest
-    map.current.setMaxBounds([
-      [-104.05, 36.99], // Southwest
-      [-80.52, 49.38]   // Northeast
-    ]);
-
-    // Handle map move
-    map.current.on('moveend', () => {
-      if (!map.current) return;
-      
-      // Reset animation flag
-      const wasAnimating = isAnimating.current;
-      isAnimating.current = false;
-      
-      const bounds = map.current.getBounds();
-      if (!bounds) return;
-      const center = map.current.getCenter();
-      const zoom = map.current.getZoom();
-      
-      setCurrentZoom(zoom);
-      
-      // Update URL
-      const params = new URLSearchParams({
-        lat: center.lat.toFixed(5),
-        lng: center.lng.toFixed(5),
-        zoom: zoom.toFixed(1)
-      });
-      window.history.replaceState({}, '', `?${params}`);
-      
-      // Always fetch reports in bounds (even after flyTo animations)
-      fetchReportsInBounds({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest(),
-        zoom: zoom
-      });
-    });
-
-    // Initial load
-    map.current.on('load', () => {
-      if (!map.current) return;
-      const bounds = map.current.getBounds();
-      if (!bounds) return;
-      const zoom = map.current.getZoom();
-      setCurrentZoom(zoom);
-      
-      fetchReportsInBounds({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest(),
-        zoom: zoom
-      });
-    });
-
-    return () => {
-      map.current?.remove();
-    };
-  }, [isMounted, hasMapboxToken]);
-
-  // Check for lake parameter from near-me search and auto-open sidebar
-  useEffect(() => {
-    if (!isMounted || !map.current) return;
-    
-    const params = new URLSearchParams(window.location.search);
-    const lakeName = params.get('lake');
-    
-    // If coming from lake search, ensure sidebar is open and wait for reports to load
-    if (lakeName && currentZoom >= 6) {
-      setSidebarOpen(true);
-    }
-  }, [isMounted, reports, currentZoom]);
-
-  // Fetch reports within map bounds
-  const fetchReportsInBounds = async (bbox: {
-    north: number;
-    south: number;
-    east: number;
-    west: number;
-    zoom: number;
-  }) => {
-    try {
-      setIsLoading(true);
-      const { api } = await import('../../lib/api');
-      const fetchedReports = await api.getReportsInBounds(bbox);
-      
-      setReports(fetchedReports);
-      updateMapMarkers(fetchedReports);
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [mapboxToken]);
 
   // Update map markers
-  const updateMapMarkers = (reports: Report[]) => {
+  function updateMapMarkers(reports: Report[]) {
     if (!map.current) return;
 
     // Remove existing markers
@@ -326,10 +205,10 @@ export default function MapPage() {
 
       markers.current.push(marker);
     });
-  };
+  }
 
   // Time ago helper
-  const getTimeAgo = (createdAt: string): string => {
+  function getTimeAgo(createdAt: string): string {
     if (!createdAt) return 'Just now';
     
     // Parse date (assuming UTC from database)
@@ -363,20 +242,18 @@ export default function MapPage() {
     // Otherwise show days
     const days = Math.floor(diffDays);
     return `${days} day${days !== 1 ? 's' : ''} ago`;
-  };
+  }
 
   // Calculate distance from map center
-  const getDistanceFromCenter = (lat: number, lng: number): string => {
-    if (!map.current) return '';
-    const center = map.current.getCenter();
-    const distance = getDistance(center.lat, center.lng, lat, lng);
+  function getDistanceFromCenter(lat: number, lng: number): string {
+    const distance = getDistance(mapCenter.lat, mapCenter.lng, lat, lng);
     if (distance === 0) return '';
     const miles = distance * 0.621371;
     return miles < 1 ? `${(miles * 5280).toFixed(0)}ft away` : `${miles.toFixed(1)}mi away`;
-  };
+  }
 
   // Haversine distance calculation
-  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -385,18 +262,135 @@ export default function MapPage() {
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-  };
+  }
+
+  const selectedReportId = selectedReport?.Id || selectedReport?.id;
+
+  const fetchReportsInBounds = useEffectEvent(async (bbox: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+    zoom: number;
+  }) => {
+    boundsRequest.current?.abort();
+    const controller = new AbortController();
+    boundsRequest.current = controller;
+
+    try {
+      setIsLoading(true);
+      const { api } = await import('../../lib/api');
+      const fetchedReports = await api.getReportsInBounds(bbox, controller.signal);
+      if (controller.signal.aborted) return;
+
+      setLoadError(null);
+      setReports(fetchedReports);
+      updateMapMarkers(fetchedReports);
+    } catch (error) {
+      const { ApiUnavailableError, isAbortError } = await import('../../lib/api');
+      if (isAbortError(error) || controller.signal.aborted) return;
+
+      const unavailable = error instanceof ApiUnavailableError;
+      // console.warn avoids the Next.js dev error overlay for an expected offline API.
+      console.warn('[Map] Reports unavailable:', error instanceof Error ? error.message : error);
+      setReports([]);
+      updateMapMarkers([]);
+      setLoadError(unavailable
+        ? 'Ice reports are temporarily unavailable. The map still works — please try again shortly.'
+        : 'Ice reports could not be loaded. Try moving the map to retry.');
+    } finally {
+      if (boundsRequest.current === controller) {
+        boundsRequest.current = null;
+        setIsLoading(false);
+      }
+    }
+  });
+
+  useEffect(() => () => boundsRequest.current?.abort(), []);
+
+  // Initialize map
+  useEffect(() => {
+    if (!isMounted || !hasMapboxToken) return;
+    if (!mapContainer.current || map.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get('lat') || '44.8');
+    const lng = parseFloat(params.get('lng') || '-93.5');
+    const zoom = parseFloat(params.get('zoom') || '5');
+
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: [lng, lat],
+      zoom
+    });
+
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.current.setMaxBounds([
+      [-104.05, 36.99],
+      [-80.52, 49.38]
+    ]);
+
+    map.current.on('moveend', () => {
+      if (!map.current) return;
+
+      isAnimating.current = false;
+      const bounds = map.current.getBounds();
+      if (!bounds) return;
+      const center = map.current.getCenter();
+      const zoom = map.current.getZoom();
+
+      setMapCenter({ lat: center.lat, lng: center.lng });
+      setCurrentZoom(zoom);
+
+      const params = new URLSearchParams({
+        lat: center.lat.toFixed(5),
+        lng: center.lng.toFixed(5),
+        zoom: zoom.toFixed(1)
+      });
+      window.history.replaceState({}, '', `?${params}`);
+
+      fetchReportsInBounds({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+        zoom
+      });
+    });
+
+    map.current.on('load', () => {
+      if (!map.current) return;
+      const bounds = map.current.getBounds();
+      if (!bounds) return;
+      const center = map.current.getCenter();
+      const zoom = map.current.getZoom();
+      setMapCenter({ lat: center.lat, lng: center.lng });
+      setCurrentZoom(zoom);
+
+      fetchReportsInBounds({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+        zoom
+      });
+    });
+
+    return () => {
+      map.current?.remove();
+    };
+  }, [isMounted, hasMapboxToken]);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Header 
         onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onNewReport={() => router.push('/')}
       />
       <Navigation 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
-        onNewReport={() => router.push('/')}
+        onNewReport={() => router.push('/?newReport=true')}
       />
 
       {!isMounted ? (
@@ -407,22 +401,30 @@ export default function MapPage() {
       ) : !hasMapboxToken ? (
         // Show error message if token is missing
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
-          <Box sx={{ textAlign: 'center', maxWidth: '500px' }}>
-            <Typography variant="h5" gutterBottom color="error">
-              Map Configuration Error
+          <Box role="alert" sx={{ textAlign: 'center', maxWidth: '500px' }}>
+            <Typography variant="h5" gutterBottom>
+              The map is temporarily unavailable
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Mapbox token is not configured. Please set NEXT_PUBLIC_MAPBOX_TOKEN in your environment variables.
+              The interactive map has not been configured yet. You can still search for your lake and browse community reports.
             </Typography>
+            <Button href="/near-me/" variant="contained" sx={{ mt: 3 }}>Search lake reports</Button>
+            {process.env.NODE_ENV === 'development' && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
+                Developer setup: add a public Mapbox token (pk.) as NEXT_PUBLIC_MAPBOX_TOKEN
+                in .env.local, then restart the frontend. Production requires that GitHub
+                Actions secret and a fresh build.
+              </Typography>
+            )}
           </Box>
         </div>
       ) : (
       <div style={{ 
         flex: 1, 
+        minHeight: 0,
         position: 'relative', 
         display: 'flex', 
         flexDirection: 'column',
-        height: isMobile ? 'calc(100vh - 120px)' : 'auto',
         overflow: 'hidden'
       }}>
         {/* User-Submitted Disclaimer Banner */}
@@ -438,11 +440,21 @@ export default function MapPage() {
           zIndex: 10,
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
         }}>
-          <span style={{ fontSize: isMobile ? '1rem' : '1.2rem' }}>⚠️</span>
           <span style={{ flex: 1 }}>
             <strong>User-submitted reports:</strong> Always verify ice thickness yourself. No ice is 100% safe.
           </span>
         </div>
+        {loadError && (
+          <div role="status" style={{
+            padding: '0.75rem 1rem',
+            color: '#721c24',
+            background: '#f8d7da',
+            borderBottom: '1px solid #f5c6cb',
+            fontSize: '0.9rem'
+          }}>
+            {loadError}
+          </div>
+        )}
 
         {/* Map Container */}
         <div ref={mapContainer} style={{ 
@@ -562,7 +574,7 @@ export default function MapPage() {
                       Ice Thickness
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary-dark)' }}>
-                      {selectedReport.Thickness || selectedReport.thickness}"
+                      {selectedReport.Thickness || selectedReport.thickness}&quot;
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
                       User-submitted measurement
@@ -616,7 +628,6 @@ export default function MapPage() {
                         backgroundColor: '#f5f5f5'
                       }
                     }}
-                    startIcon={<span>🚩</span>}
                   >
                     Is this report incorrect?
                   </Button>
@@ -646,9 +657,8 @@ export default function MapPage() {
                   const thickness = report.Thickness || report.thickness || 0;
                   const surfaceType = report.SurfaceType || report.surfaceType || 'unknown';
                   const createdAt = report.CreatedAt || report.createdAt || new Date().toISOString();
-                  const reportId = report.Id || report.id || Math.random().toString();
-                  const selectedId = selectedReport ? ((selectedReport as Report).Id || (selectedReport as Report).id) : null;
-                  const isSelected = selectedId === reportId;
+                  const reportId = report.Id || report.id || `${lakeName}-${lat}-${lng}-${createdAt}`;
+                  const isSelected = selectedReportId === reportId;
                   
                   return (
                   <div
@@ -697,7 +707,7 @@ export default function MapPage() {
                           Thickness
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {thickness}"
+                          {thickness}&quot;
                         </Typography>
                       </div>
                       <div>
@@ -738,7 +748,7 @@ export default function MapPage() {
                         e.currentTarget.style.borderColor = '#ccc';
                       }}
                     >
-                      🚩 Flag
+                       Flag
                     </button>
                   </div>
                   );
@@ -790,11 +800,10 @@ export default function MapPage() {
           >
             {isMobile ? (
               <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <LocationOnIcon fontSize="small" />
                 View Reports ({reports.length})
               </Typography>
             ) : (
-              <LocationOnIcon />
+              <>View reports ({reports.length})</>
             )}
           </Button>
         )}
