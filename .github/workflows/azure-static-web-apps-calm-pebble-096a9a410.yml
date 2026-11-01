@@ -1,4 +1,4 @@
-name: Azure Static Web Apps CI/CD
+name: Azure Static Web Apps CI/CD (calm-pebble)
 
 on:
   push:
@@ -48,6 +48,9 @@ jobs:
           fi
           echo "Building with environment variables (values hidden for security)"
           npm run build
+          test -f out/index.html
+          test -f out/404.html
+          test -f out/staticwebapp.config.json
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

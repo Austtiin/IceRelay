@@ -93,7 +93,9 @@ Use actual values only in ignored local settings or protected backend configurat
 
 SWA **runtime application settings do not configure this exported frontend**, and the separate Function App does not inherit them. The current workflow reads the five public variables from GitHub secrets at build time. Restart local development after changing `.env.local`, and rebuild/redeploy production after changing a frontend secret.
 
-The workflow at `.github/workflows/azure-static-web-apps-calm-pebble-096a9a410.yml` runs on pushes and pull requests targeting `main`. It installs dependencies, builds the static site, and uploads `icethick/out/`.
+Both `.github/workflows/azure-static-web-apps-calm-pebble-096a9a410.yml` and `.github/workflows/azure-static-web-apps-delightful-river-00df62b10.yml` run on pushes and pull requests targeting `main`. Each installs dependencies, builds the static site with the public environment variables, verifies the exported homepage, 404 page, and SWA configuration, and uploads `icethick/out/` with `skip_app_build: true`. Next.js static export produces `out`, not `build`; `output_location` is empty because `app_location` already points to the export. Neither workflow bundles the separately deployed Functions API.
+
+The workflows target different Static Web Apps and retain their respective deployment-token secrets. For delightful-river, use `AZURE_STATIC_WEB_APPS_API_TOKEN_DELIGHTFUL_RIVER_00DF62B10` instead of the calm-pebble token listed below. Confirm which SWA serves `icerelay.net` before retiring either workflow. Rerunning an old failed job uses its original workflow revision; push this fix to `main` to trigger a run with the corrected configuration.
 
 Configure these GitHub Actions secrets before deployment:
 
