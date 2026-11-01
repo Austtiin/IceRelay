@@ -11,6 +11,9 @@ const pageStyles = {
   contentContainer: { maxWidth: '800px' }
 };
 
+
+
+
 export default function CookiePolicyPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
