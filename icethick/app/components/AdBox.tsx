@@ -21,6 +21,8 @@ export default function AdBox({ children }: AdBoxProps) {
       fontSize: '0.75rem',
       color: '#64748b'
     }}>
+
+      
       <div style={{
         marginBottom: '0.25rem',
         fontWeight: 600,
