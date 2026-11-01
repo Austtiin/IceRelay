@@ -54,9 +54,9 @@ Map links retain Next.js production route prefetching. Hover, keyboard focus, or
 
 Yes, the frontend can use `NEXT_PUBLIC_API_URL=/api` when the existing Function App is explicitly **linked as the Static Web App's backend**. Bring-your-own Functions integration requires the **SWA Standard plan**. The Function App remains a separately deployed resource with its own SQL and Storage settings; SWA proxies `/api/*` requests to it.
 
-In Azure Portal, open the Static Web App's **APIs** settings and verify the production environment is linked to `ice-relay-func`. The repository's `api_location: ""` does not establish this link, and an `/api/*` route rule alone does not create a proxy. The live link has not been verified. Bring-your-own backend integration is not available for pull-request preview environments, so those need an appropriate API endpoint separately.
+In Azure Portal, open the Static Web App's **APIs** settings and verify the production environment is linked to the intended Function App. The remaining Functions workflow targets `relay-func`. The repository's `api_location: ""` does not establish this link, and an `/api/*` route rule alone does not create a proxy. The user reports the production backend is linked; the live link has not been independently verified. Bring-your-own backend integration is not available for pull-request preview environments, so those need an appropriate API endpoint separately.
 
-After verifying the link, set the frontend build secret `NEXT_PUBLIC_API_URL=/api` and rebuild. Keep `http://localhost:7071/api` in local development unless using a configured local SWA proxy. A linked backend is an alternative to a separate browser-facing API URL, not a substitute for throttling, request-size controls, or direct-origin protection.
+The frontend workflow defaults `NEXT_PUBLIC_API_URL` to `/api` when its repository secret is unset or empty. No API URL secret is required for the linked production backend. Set the secret only to override this default with a separate endpoint ending in `/api`, then rebuild. Keep `http://localhost:7071/api` in local development unless using a configured local SWA proxy. A linked backend is an alternative to a separate browser-facing API URL, not a substitute for throttling, request-size controls, or direct-origin protection.
 
 See [Microsoft's bring-your-own Functions instructions](https://learn.microsoft.com/en-us/azure/static-web-apps/functions-bring-your-own).
 
@@ -67,7 +67,7 @@ The homepage privacy banner offers **Essential only** (optional analytics off) a
 | Setting | Ignored local file | Production destination |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | `icethick\.env.local`: `http://localhost:3000` | GitHub frontend build secret: `https://icerelay.net` |
-| `NEXT_PUBLIC_API_URL` | `icethick\.env.local`: `http://localhost:7071/api` | GitHub frontend build secret: protected public API base ending in `/api` |
+| `NEXT_PUBLIC_API_URL` | `icethick\.env.local`: `http://localhost:7071/api` | Defaults to `/api` for the linked backend; optional GitHub build secret overrides it |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | `icethick\.env.local`: public `pk.` token | GitHub frontend build secret; restrict allowed origins |
 | GA4 / Clarity public IDs | `icethick\.env.local`, blank unless testing analytics | GitHub frontend build secrets, optional |
 | `AzureWebJobsStorage` | `api\local.settings.json`: `UseDevelopmentStorage=true` with Azurite | Function App setting: Storage connection string or supported identity configuration |
@@ -93,15 +93,15 @@ Use actual values only in ignored local settings or protected backend configurat
 
 SWA **runtime application settings do not configure this exported frontend**, and the separate Function App does not inherit them. The current workflow reads the five public variables from GitHub secrets at build time. Restart local development after changing `.env.local`, and rebuild/redeploy production after changing a frontend secret.
 
-Both `.github/workflows/azure-static-web-apps-calm-pebble-096a9a410.yml` and `.github/workflows/azure-static-web-apps-delightful-river-00df62b10.yml` run on pushes and pull requests targeting `main`. Each installs dependencies, builds the static site with the public environment variables, verifies the exported homepage, 404 page, and SWA configuration, and uploads `icethick/out/` with `skip_app_build: true`. Next.js static export produces `out`, not `build`; `output_location` is empty because `app_location` already points to the export. Neither workflow bundles the separately deployed Functions API.
+The workflow `.github/workflows/azure-static-web-apps-delightful-river-00df62b10.yml` runs on pushes and pull requests targeting `main`. It installs dependencies, builds the static site with the public environment variables, verifies the exported homepage, 404 page, and SWA configuration, and uploads `icethick/out/` with `skip_app_build: true`. Next.js static export produces `out`, not `build`; `output_location` is empty because `app_location` already points to the export. It does not bundle the separately deployed Functions API.
 
-The workflows target different Static Web Apps and retain their respective deployment-token secrets. For delightful-river, use `AZURE_STATIC_WEB_APPS_API_TOKEN_DELIGHTFUL_RIVER_00DF62B10` instead of the calm-pebble token listed below. Confirm which SWA serves `icerelay.net` before retiring either workflow. Rerunning an old failed job uses its original workflow revision; push this fix to `main` to trigger a run with the corrected configuration.
+The older calm-pebble workflow has been removed. The remaining workflow uses the delightful-river deployment token. Rerunning an old failed job uses its original workflow revision; push this fix to `main` to trigger a run with the corrected configuration.
 
 Configure these GitHub Actions secrets before deployment:
 
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_CALM_PEBBLE_096A9A410`
+- `AZURE_STATIC_WEB_APPS_API_TOKEN_DELIGHTFUL_RIVER_00DF62B10`
 - `NEXT_PUBLIC_SITE_URL` — `https://icerelay.net`
-- `NEXT_PUBLIC_API_URL` — the public API endpoint, ending in `/api`. For production, point this to API Management (or an equivalent protected gateway), not directly to the Function App origin.
+- `NEXT_PUBLIC_API_URL` — optional; defaults to `/api` for the linked SWA backend. Set only when using a separate protected API endpoint ending in `/api`.
 - `NEXT_PUBLIC_MAPBOX_TOKEN` — a public Mapbox token restricted to the deployed site domains
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID` — existing GA4 measurement ID `G-WBV3R0RG7F`
 - `NEXT_PUBLIC_CLARITY_PROJECT_ID` — optional Microsoft Clarity project ID; create a Clarity project before setting it
@@ -118,7 +118,7 @@ The site now declares `https://icerelay.net` as its canonical origin. The sitema
 2. Select `icerelay.net` as the canonical host. Attach `www.icerelay.net` only if you can configure a permanent HTTP 301 redirect from `www` to the apex host; DNS records alone cannot redirect browser requests.
 3. If the previous `icerelay.app` domain is controlled, retain it and set a path-preserving permanent redirect to the matching `icerelay.net` URL.
 4. Confirm the new site is reachable over HTTPS before publishing these canonical URLs. The latest public check found an apex DNS A record, no `www` web record, and an HTTPS timeout; verify that DNS points to the production Static Web App and that its certificate is active.
-5. Rebuild and deploy the static site after confirming the `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_MAPBOX_TOKEN` build secrets. Add `https://icerelay.net` to the Mapbox token's URL restrictions and the Function App's CORS allowlist (and `www` only if it is intentionally served).
+5. Rebuild and deploy the static site after confirming the linked `/api` backend (or optional `NEXT_PUBLIC_API_URL` override) and the `NEXT_PUBLIC_MAPBOX_TOKEN` build secret. Add `https://icerelay.net` to the Mapbox token's URL restrictions. A separate cross-origin API also needs the site in its CORS allowlist (and `www` only if it is intentionally served).
 6. Update the Google Analytics web-stream URL, verify the domain in Google Search Console, submit `https://icerelay.net/sitemap.xml`, and confirm the AdSense site/domain configuration and `ads.txt`.
 7. Verify that `support@icerelay.app` is still monitored or provision a working `@icerelay.net` support address before changing the published contact details.
 
