@@ -106,6 +106,25 @@ The production frontend currently uses the reports list and map-bounds endpoints
 
 ## Database Schema
 
+### Managed identity authentication
+
+SqlClient 7 requires `Microsoft.Data.SqlClient.Extensions.Azure` for Entra
+authentication modes in connection strings. Keep this package reference when
+updating dependencies; the core SqlClient package alone cannot provide managed
+identity authentication.
+
+For an Azure-hosted Function App with system-assigned identity enabled, use:
+
+```text
+Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<database>;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+```
+
+No client ID or password is required for system-assigned identity. An Entra
+administrator must create the matching external database user and grant
+`SELECT, INSERT` on `dbo.IceReports`; SQL network access is also required.
+After adding/updating the authentication package, redeploy the API, not just
+the frontend or its settings.
+
 See root-level `DB_Schema.md` and the executable `sql\001-initialize.sql`.
 Back up and inspect an existing database before applying it.
 
