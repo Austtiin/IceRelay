@@ -8,6 +8,7 @@ interface ReportCardProps {
   timeAgo: string;
   location?: string;
   quality?: string[];
+  notes?: string;
   reportCount?: number;
   surfaceType?: string;
   isMeasured?: boolean;
@@ -19,6 +20,7 @@ export default function ReportCard({
   timeAgo, 
   location,
   quality,
+  notes,
   reportCount = 1,
   surfaceType,
   isMeasured = true
@@ -26,7 +28,7 @@ export default function ReportCard({
   // Check if report is getting old
   const getAgeWarning = (timeText: string) => {
     if (timeText.includes('day') || timeText.includes('days')) {
-      const days = parseInt(timeText);
+      const days = Number(timeText.match(/(\d+)\s+days?/)?.[1] ?? 0);
       if (days >= 2) return { message: ' Report aging - verify current conditions', cssClass: 'card-very-faded' };
       if (days >= 1) return { message: ' Conditions may have changed', cssClass: 'card-faded' };
     }
@@ -54,6 +56,8 @@ export default function ReportCard({
            {lakeName}
         </h3>
       </div>
+
+      {notes && <p className="report-observation-notes">{notes}</p>}
 
       <div style={{
         display: 'grid',
@@ -137,7 +141,7 @@ export default function ReportCard({
           fontSize: '0.8rem',
           color: '#856404',
           marginBottom: '0.75rem',
-          borderLeft: '3px solid #F7A93D'
+          border: '1px solid #F7A93D'
         }}>
           {ageWarning.message}
         </div>

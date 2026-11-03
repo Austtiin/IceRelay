@@ -1,24 +1,17 @@
-"use client";
-
-import { useState } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import Header from "./components/Header";
-import Navigation from "./components/Navigation";
-import Footer from "./components/Footer";
+import WebsiteShell from "./components/WebsiteShell";
+
+export const metadata: Metadata = {
+  title: "Page Not Found | Ice Relay",
+  description: "This page could not be found. Find community lake reports, reporting guides, and Ice Relay resources.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: null },
+};
 
 export default function NotFoundPage() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <Header
-        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-      />
-      <Navigation
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
-
+    <WebsiteShell>
       <main style={{ flex: 1, padding: "4rem 0", background: "#fafbfc" }}>
         <div className="container" style={{ maxWidth: "720px", textAlign: "center" }}>
           <h1
@@ -76,7 +69,7 @@ export default function NotFoundPage() {
                 background: "white",
               }}
             >
-              View Ice Near Me
+              Find lake reports
             </Link>
             <Link
               href="/map/"
@@ -93,6 +86,9 @@ export default function NotFoundPage() {
               Open Map View
             </Link>
           </div>
+          <p style={{ marginBottom: "1.5rem" }}>
+            New to Ice Relay? <Link href="/resources/" className="text-link">Explore our reporting resources</Link> or <Link href="/contribute/" className="text-link">learn how to contribute</Link>.
+          </p>
 
           <p
             style={{
@@ -106,7 +102,6 @@ export default function NotFoundPage() {
         </div>
       </main>
 
-      <Footer />
-    </div>
+    </WebsiteShell>
   );
 }

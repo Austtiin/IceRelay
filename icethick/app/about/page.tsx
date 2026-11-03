@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { useState } from 'react';
+import Link from 'next/link';
 
 const pageStyles = {
   container: { minHeight: '100vh', display: 'flex', flexDirection: 'column' as const },
@@ -41,9 +42,10 @@ export default function AboutPage() {
                 Our Mission
               </h2>
               <p style={{ marginBottom: '1rem' }}>
-                Ice Relay is a community-driven platform designed to help ice enthusiasts across the Midwest 
-                stay safe by sharing real-time ice thickness data. We believe that collective knowledge and 
-                transparency about ice conditions can save lives and make winter activities safer for everyone.
+                Ice Relay is an independent community project for sharing lake ice observations
+                across the Upper Midwest. We bring firsthand reports together so visitors can find
+                local context without searching through scattered conversations.
+                We are not a government agency, a verified monitoring service, or a source of safety clearance.
               </p>
             </section>
 
@@ -53,14 +55,14 @@ export default function AboutPage() {
               </h2>
               <p style={{ marginBottom: '1rem' }}>
                 Ice Relay aggregates ice thickness reports from community members like you. When you submit a 
-                report, you&apos;re helping fellow ice fishers, skaters, and outdoor enthusiasts make informed 
-                decisions about ice safety.
+                report, you&apos;re helping fellow ice fishers, skaters, and outdoor enthusiasts find
+                observations from a particular place and time. Reports are unverified and may be outdated.
               </p>
               <ul style={{ marginLeft: '1.5rem', marginBottom: '1rem' }}>
                 <li><strong>No Account Required:</strong> Submit reports without creating an account</li>
-                <li><strong>Real-Time Data:</strong> See the latest ice conditions across the region</li>
+                <li><strong>Local Context:</strong> Explore submitted observations, not live or independently verified conditions</li>
                 <li><strong>Community Driven:</strong> Built by ice enthusiasts, for ice enthusiasts</li>
-                <li><strong>Free Forever:</strong> This service will always remain free to use</li>
+                <li><strong>Free to Use:</strong> Browse and contribute community reports</li>
               </ul>
             </section>
 
@@ -71,8 +73,8 @@ export default function AboutPage() {
               <p style={{ marginBottom: '1rem' }}>
                 Ice thickness information is often scattered across forums, social media posts, and word-of-mouth. 
                 We wanted to create a centralized, easy-to-use platform where everyone can access and contribute 
-                ice condition data. Our goal is to reduce ice-related accidents by providing better information 
-                to our community.
+                ice observations. Coverage depends on people contributing; a missing report does not
+                tell you anything about a lake&apos;s conditions.
               </p>
             </section>
 
@@ -106,6 +108,11 @@ export default function AboutPage() {
               <h2 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-dark)' }}>
                 Get Involved
               </h2>
+              <p style={{ marginBottom: '1rem' }}>
+                The most direct way to help is to share a firsthand observation when you are
+                already at a lake. Never take a risk to collect a report.
+                {' '}<Link href="/contribute/" className="text-link">Read our community reporting guide</Link>.
+              </p>
               <p style={{ marginBottom: '1rem' }}>
                 Ice Relay is an open-source project created by AS.
                 {' '}If you&apos;d like to contribute, report issues, or request features, please visit our{' '}

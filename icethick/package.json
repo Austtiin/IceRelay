@@ -9,7 +9,9 @@
     "dev": "next dev",
     "dev:api": "cd ../api && func start",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
-    "build": "next build",
+    "build": "next build && node --env-file-if-exists=.env.local scripts/prepare-hosting.mjs",
+    "verify:export": "node scripts/verify-export.mjs",
+    "test": "node --test scripts/hosting.test.mjs",
     "start": "next start",
     "lint": "eslint"
   },

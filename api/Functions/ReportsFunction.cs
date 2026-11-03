@@ -29,8 +29,7 @@ public class ReportsFunction
 
         try
         {
-            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
-                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = GetConnectionString();
             if (string.IsNullOrEmpty(connectionString))
             {
                 _logger.LogError("Database connection string not configured");
@@ -41,18 +40,6 @@ public class ReportsFunction
 
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
-
-            // Debug: Check total reports in database
-            var debugCountSql = "SELECT COUNT(*) FROM IceReports;";
-            await using var debugCountCommand = new SqlCommand(debugCountSql, connection);
-            var totalReports = (int)await debugCountCommand.ExecuteScalarAsync();
-            _logger.LogInformation($"[DEBUG] Total reports in database: {totalReports}");
-
-            // Debug: Check reports within 180 days
-            var debug180Sql = "SELECT COUNT(*) FROM IceReports WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME());";
-            await using var debug180Command = new SqlCommand(debug180Sql, connection);
-            var recent180 = (int)await debug180Command.ExecuteScalarAsync();
-            _logger.LogInformation($"[DEBUG] Reports within last 180 days: {recent180}");
 
             // Get the 6 most recent reports from the last 180 days
             var sql = @"
@@ -66,84 +53,16 @@ public class ReportsFunction
                     SurfaceType,
                     Notes,
                     CreatedAt
-                FROM IceReports
+                FROM dbo.IceReports
                 WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
+                  AND ExpiresAt > SYSUTCDATETIME() AND IsFlagged = 0
                 ORDER BY CreatedAt DESC;";
 
             await using var command = new SqlCommand(sql, connection);
-            await using var reader = await command.ExecuteReaderAsync();
-
-            var reports = new List<IceReport>();
-            while (await reader.ReadAsync())
-            {
-                // Parse location and ice quality from Notes if present
-                var notes = reader["Notes"] as string;
-                string? location = null;
-                List<string>? iceQuality = null;
-
-                if (!string.IsNullOrWhiteSpace(notes))
-                {
-                    // Extract location if present (format: "Location: value")
-                    if (notes.Contains("Location:"))
-                    {
-                        var locationMatch = System.Text.RegularExpressions.Regex.Match(notes, @"Location:\s*([^|]+)");
-                        if (locationMatch.Success)
-                        {
-                            location = locationMatch.Groups[1].Value.Trim();
-                        }
-                    }
-
-                    // Extract ice quality conditions if present (format: "Conditions: value1, value2")
-                    if (notes.Contains("Conditions:"))
-                    {
-                        var conditionsMatch = System.Text.RegularExpressions.Regex.Match(notes, @"Conditions:\s*([^|]+)");
-                        if (conditionsMatch.Success)
-                        {
-                            var conditions = conditionsMatch.Groups[1].Value.Trim();
-                            iceQuality = conditions.Split(',').Select(c => c.Trim()).ToList();
-                        }
-                    }
-                }
-
-                // Read CreatedAt and specify it's UTC (database stores UTC)
-                var createdAtUtc = DateTime.SpecifyKind(
-                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                    DateTimeKind.Utc
-                );
-
-                var report = new IceReport
-                {
-                    Id = reader["ReportId"].ToString(),
-                    LakeName = reader["LakeName"] as string,
-                    Thickness = Convert.ToDouble(reader["IceThicknessIn"]),
-                    Location = location,
-                    Latitude = Convert.ToDouble(reader["Latitude"]),
-                    Longitude = Convert.ToDouble(reader["Longitude"]),
-                    SurfaceType = (reader["SurfaceType"] as string)?.ToLower() ?? "clear",
-                    IsMeasured = (reader["MeasurementType"] as string) == "Measured",
-                    CreatedAt = createdAtUtc,
-                    IceQuality = iceQuality
-                };
-
-                reports.Add(report);
-            }
+            var reports = await ReadReportsAsync(command);
 
             _logger.LogInformation($"Retrieved {reports.Count} reports from database");
             
-            // Log the order of reports being returned with detailed timestamp info
-            for (int i = 0; i < reports.Count && i < 6; i++)
-            {
-                var createdTicks = reports[i].CreatedAt.Ticks;
-                _logger.LogInformation($"Report[{i}]: {reports[i].LakeName} - CreatedAt: {reports[i].CreatedAt:O} (Ticks: {createdTicks})");
-            }
-            
-            // Log if there's an ordering issue
-            if (reports.Count >= 2)
-            {
-                var isDescending = reports[0].CreatedAt >= reports[1].CreatedAt;
-                _logger.LogInformation($"Order check: First report is {(isDescending ? "NEWER" : "OLDER")} than second - {(isDescending ? "CORRECT" : "WRONG")}");
-            }
-
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(reports);
             return response;
@@ -170,10 +89,12 @@ public class ReportsFunction
         {
             // Parse query parameters
             var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
-            if (!double.TryParse(query["north"], out var north) ||
-                !double.TryParse(query["south"], out var south) ||
-                !double.TryParse(query["east"], out var east) ||
-                !double.TryParse(query["west"], out var west))
+            if (!TryParseCoordinate(query["north"], out var north) ||
+                !TryParseCoordinate(query["south"], out var south) ||
+                !TryParseCoordinate(query["east"], out var east) ||
+                !TryParseCoordinate(query["west"], out var west) ||
+                north > 90 || south < -90 || south > north ||
+                east > 180 || east < -180 || west > 180 || west < -180)
             {
                 var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
                 await errorResponse.WriteStringAsync("Invalid bounds parameters");
@@ -182,8 +103,7 @@ public class ReportsFunction
 
             double.TryParse(query["zoom"], out var zoom);
 
-            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
-                                 ?? Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = GetConnectionString();
 
             if (string.IsNullOrEmpty(connectionString))
             {
@@ -208,10 +128,12 @@ public class ReportsFunction
                     SurfaceType,
                     Notes,
                     CreatedAt
-                FROM IceReports
+                FROM dbo.IceReports
                 WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
+                  AND ExpiresAt > SYSUTCDATETIME() AND IsFlagged = 0
                   AND Latitude BETWEEN @south AND @north
-                  AND Longitude BETWEEN @west AND @east
+                  AND ((@west <= @east AND Longitude BETWEEN @west AND @east)
+                    OR (@west > @east AND (Longitude >= @west OR Longitude <= @east)))
                 ORDER BY CreatedAt DESC;";
 
             await using var command = new SqlCommand(sql, connection);
@@ -220,60 +142,7 @@ public class ReportsFunction
             command.Parameters.AddWithValue("@east", east);
             command.Parameters.AddWithValue("@west", west);
 
-            await using var reader = await command.ExecuteReaderAsync();
-
-            var reports = new List<IceReport>();
-            while (await reader.ReadAsync())
-            {
-                // Parse location and ice quality from Notes if present
-                var notes = reader["Notes"] as string;
-                string? location = null;
-                List<string>? iceQuality = null;
-
-                if (!string.IsNullOrWhiteSpace(notes))
-                {
-                    if (notes.Contains("Location:"))
-                    {
-                        var locationMatch = System.Text.RegularExpressions.Regex.Match(notes, @"Location:\s*([^|]+)");
-                        if (locationMatch.Success)
-                        {
-                            location = locationMatch.Groups[1].Value.Trim();
-                        }
-                    }
-
-                    if (notes.Contains("Conditions:"))
-                    {
-                        var conditionsMatch = System.Text.RegularExpressions.Regex.Match(notes, @"Conditions:\s*([^|]+)");
-                        if (conditionsMatch.Success)
-                        {
-                            var conditions = conditionsMatch.Groups[1].Value.Trim();
-                            iceQuality = conditions.Split(',').Select(c => c.Trim()).ToList();
-                        }
-                    }
-                }
-
-                // Read CreatedAt and specify it's UTC
-                var createdAtUtc = DateTime.SpecifyKind(
-                    reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                    DateTimeKind.Utc
-                );
-
-                var report = new IceReport
-                {
-                    Id = reader["ReportId"].ToString(),
-                    LakeName = reader["LakeName"] as string,
-                    Thickness = Convert.ToDouble(reader["IceThicknessIn"]),
-                    Location = location,
-                    Latitude = Convert.ToDouble(reader["Latitude"]),
-                    Longitude = Convert.ToDouble(reader["Longitude"]),
-                    SurfaceType = (reader["SurfaceType"] as string)?.ToLower() ?? "clear",
-                    IsMeasured = (reader["MeasurementType"] as string) == "Measured",
-                    CreatedAt = createdAtUtc,
-                    IceQuality = iceQuality
-                };
-
-                reports.Add(report);
-            }
+            var reports = await ReadReportsAsync(command);
 
             _logger.LogInformation($"Retrieved {reports.Count} reports within bounds");
 
@@ -300,38 +169,38 @@ public class ReportsFunction
         if (rateLimitResponse is not null) return rateLimitResponse;
         var ipAddress = GetClientIpAddress(req);
 
-        var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-        var reportRequest = JsonSerializer.Deserialize<CreateReportRequest>(requestBody, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        if (reportRequest == null)
-        {
-            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResponse.WriteStringAsync("Invalid request body");
-            return badResponse;
-        }
+        var (reportRequest, requestError) = await ReadRequestAsync<CreateReportRequest>(req);
+        if (requestError is not null) return requestError;
+        if (reportRequest is null) throw new InvalidOperationException("Request validation returned no value.");
 
         // Validate required fields
-        if (reportRequest.Latitude == 0 || reportRequest.Longitude == 0)
+        if (!IsValidLocation(reportRequest.Latitude, reportRequest.Longitude) ||
+            reportRequest.Latitude == 0 || reportRequest.Longitude == 0)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
             await badResponse.WriteStringAsync("Latitude and Longitude are required");
             return badResponse;
         }
 
-        if (reportRequest.Thickness < 0 || reportRequest.Thickness > 50)
+        if (!double.IsFinite(reportRequest.Thickness) || reportRequest.Thickness < 0 || reportRequest.Thickness > 50)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
             await badResponse.WriteStringAsync("Thickness must be between 0 and 50 inches");
             return badResponse;
         }
 
-        if (string.IsNullOrWhiteSpace(reportRequest.SurfaceType))
+        var surfaceType = reportRequest.SurfaceType?.ToLowerInvariant() switch
+        {
+            "clear" => "Clear",
+            "snow" or "snow-covered" => "Snow",
+            "slush" => "Slush",
+            "refrozen" => "Refrozen",
+            _ => null
+        };
+        if (surfaceType is null)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResponse.WriteStringAsync("Surface type is required");
+            await badResponse.WriteStringAsync("Surface type must be clear, snow, slush, or refrozen");
             return badResponse;
         }
 
@@ -345,6 +214,28 @@ public class ReportsFunction
             return badResponse;
         }
         var cleanedLakeName = lakeValidation.CleanedText!;
+
+        var cleanedQuality = new List<string>();
+        if (reportRequest.IceQuality is not null)
+        {
+            if (reportRequest.IceQuality.Count > 10)
+            {
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteStringAsync("At most 10 ice conditions may be included");
+                return badResponse;
+            }
+            foreach (var condition in reportRequest.IceQuality)
+            {
+                var validation = ContentValidator.ValidateText(condition, "Ice condition", 50);
+                if (!validation.IsValid || string.IsNullOrWhiteSpace(validation.CleanedText))
+                {
+                    var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await badResponse.WriteStringAsync(validation.ErrorMessage ?? "Ice conditions must not be empty");
+                    return badResponse;
+                }
+                cleanedQuality.Add(validation.CleanedText);
+            }
+        }
 
         // Validate and sanitize location
         string? cleanedLocation = null;
@@ -396,8 +287,7 @@ public class ReportsFunction
         try
         {
             // Get connection string from environment
-            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
-                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = GetConnectionString();
             if (string.IsNullOrEmpty(connectionString))
             {
                 _logger.LogError("Database connection string not configured");
@@ -414,7 +304,7 @@ public class ReportsFunction
             await connection.OpenAsync();
 
             var sql = @"
-                INSERT INTO IceReports (
+                INSERT INTO dbo.IceReports (
                     Latitude,
                     Longitude,
                     LakeName,
@@ -445,23 +335,13 @@ public class ReportsFunction
             command.Parameters.AddWithValue("@IceThicknessIn", reportRequest.Thickness);
             command.Parameters.AddWithValue("@MeasurementType", reportRequest.IsMeasured ? "Measured" : "Observed");
             
-            // Map surface type to DB values (capitalize first letter)
-            var surfaceType = reportRequest.SurfaceType.ToLower() switch
-            {
-                "clear" => "Clear",
-                "snow" => "Snow",
-                "slush" => "Slush",
-                "refrozen" => "Refrozen",
-                "snow-covered" => "Snow",
-                _ => "Clear" // Default fallback
-            };
             command.Parameters.AddWithValue("@SurfaceType", surfaceType);
             
             // Combine notes with ice quality and location (using cleaned values)
             var notesText = cleanedNotes ?? "";
-            if (reportRequest.IceQuality != null && reportRequest.IceQuality.Any())
+            if (cleanedQuality.Count > 0)
             {
-                var qualityText = string.Join(", ", reportRequest.IceQuality);
+                var qualityText = string.Join(", ", cleanedQuality);
                 notesText = string.IsNullOrWhiteSpace(notesText) 
                     ? $"Conditions: {qualityText}"
                     : $"{notesText} | Conditions: {qualityText}";
@@ -484,6 +364,8 @@ public class ReportsFunction
                 insertedId = reader["ReportId"].ToString();
                 createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
             }
+            if (insertedId is null || createdAt is null)
+                throw new InvalidOperationException("The report insert did not return an identifier and timestamp.");
 
             _logger.LogInformation($"Report created successfully: ID={insertedId}, Lake={cleanedLakeName}");
 
@@ -496,12 +378,12 @@ public class ReportsFunction
                 Location = cleanedLocation,
                 Latitude = reportRequest.Latitude,
                 Longitude = reportRequest.Longitude,
-                SurfaceType = reportRequest.SurfaceType,
+                SurfaceType = surfaceType.ToLowerInvariant(),
                 IsMeasured = reportRequest.IsMeasured,
                 Method = reportRequest.Method,
-                IceQuality = reportRequest.IceQuality,
+                IceQuality = cleanedQuality,
                 Notes = cleanedNotes,
-                CreatedAt = createdAt ?? DateTime.UtcNow
+                CreatedAt = DateTime.SpecifyKind(createdAt.Value, DateTimeKind.Utc)
             };
 
             var response = req.CreateResponse(HttpStatusCode.Created);
@@ -512,7 +394,7 @@ public class ReportsFunction
         {
             _logger.LogError(ex, "SQL error creating report");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await errorResponse.WriteStringAsync($"Database error: {ex.Message}");
+            await errorResponse.WriteStringAsync("Could not save the report. Please try again later.");
             return errorResponse;
         }
         catch (Exception ex)
@@ -538,40 +420,69 @@ public class ReportsFunction
 
         _logger.LogInformation("Getting nearby ice reports");
 
-        var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-        var nearbyRequest = JsonSerializer.Deserialize<NearbyReportsRequest>(requestBody, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
+        var (nearbyRequest, requestError) = await ReadRequestAsync<NearbyReportsRequest>(req);
+        if (requestError is not null) return requestError;
+        if (nearbyRequest is null) throw new InvalidOperationException("Request validation returned no value.");
 
-        if (nearbyRequest == null)
+        if (!IsValidLocation(nearbyRequest.Latitude, nearbyRequest.Longitude) ||
+            !double.IsFinite(nearbyRequest.RadiusKm) || nearbyRequest.RadiusKm <= 0 || nearbyRequest.RadiusKm > 500)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResponse.WriteStringAsync("Invalid request body");
+            await badResponse.WriteStringAsync("Provide valid coordinates and a radius greater than 0 and at most 500 km");
             return badResponse;
         }
 
-        // TODO: Query Cosmos DB with geospatial query
-        // For now, return mock data
-        var mockReports = new List<IceReport>
+        try
         {
-            new IceReport
+            var connectionString = GetConnectionString();
+            if (string.IsNullOrWhiteSpace(connectionString))
             {
-                Id = "1",
-                LakeName = "Lake Minnetonka",
-                Thickness = 5.5,
-                Location = "West shore",
-                Latitude = 44.9237,
-                Longitude = -93.5633,
-                SurfaceType = "clear",
-                IsMeasured = true,
-                CreatedAt = DateTime.UtcNow.AddHours(-2)
+                _logger.LogError("Database connection string not configured");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Database connection not configured");
+                return errorResponse;
             }
-        };
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+            var sql = @"
+                SELECT TOP 100 ReportId, LakeName, Latitude, Longitude, IceThicknessIn,
+                    MeasurementType, SurfaceType, Notes, CreatedAt
+                FROM dbo.IceReports
+                CROSS APPLY (SELECT
+                    SIN(RADIANS(CONVERT(FLOAT, Latitude))) * SIN(RADIANS(@Latitude))
+                    + COS(RADIANS(CONVERT(FLOAT, Latitude))) * COS(RADIANS(@Latitude))
+                    * COS(RADIANS(CONVERT(FLOAT, Longitude) - @Longitude)) AS CosineDistance
+                ) AS angular
+                CROSS APPLY (SELECT 6371.0 * ACOS(CASE
+                    WHEN CosineDistance > 1 THEN 1
+                    WHEN CosineDistance < -1 THEN -1
+                    ELSE CosineDistance END) AS DistanceKm
+                ) AS distance
+                WHERE CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
+                  AND ExpiresAt > SYSUTCDATETIME() AND IsFlagged = 0
+                  AND Latitude BETWEEN @South AND @North
+                  AND DistanceKm <= @RadiusKm
+                ORDER BY DistanceKm, CreatedAt DESC;";
+            await using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@Latitude", System.Data.SqlDbType.Float).Value = nearbyRequest.Latitude;
+            command.Parameters.Add("@Longitude", System.Data.SqlDbType.Float).Value = nearbyRequest.Longitude;
+            command.Parameters.Add("@RadiusKm", System.Data.SqlDbType.Float).Value = nearbyRequest.RadiusKm;
+            var latitudeDelta = nearbyRequest.RadiusKm / 110.0;
+            command.Parameters.Add("@South", System.Data.SqlDbType.Float).Value = Math.Max(-90, nearbyRequest.Latitude - latitudeDelta);
+            command.Parameters.Add("@North", System.Data.SqlDbType.Float).Value = Math.Min(90, nearbyRequest.Latitude + latitudeDelta);
+            var reports = await ReadReportsAsync(command);
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(reports);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving nearby reports");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("Could not load nearby reports. Please try again later.");
+            return errorResponse;
+        }
 
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(mockReports);
-        return response;
     }
 
     [Function("GetLakeReports")]
@@ -584,24 +495,47 @@ public class ReportsFunction
 
         _logger.LogInformation($"Getting reports for lake: {lakeName}");
 
-        // TODO: Query Cosmos DB by lake name
-        var mockReports = new List<IceReport>
+        if (string.IsNullOrWhiteSpace(lakeName) || lakeName.Trim().Length > 100)
         {
-            new IceReport
-            {
-                Id = "1",
-                LakeName = lakeName,
-                Thickness = 8.0,
-                Location = "North shore",
-                SurfaceType = "clear",
-                IsMeasured = true,
-                CreatedAt = DateTime.UtcNow.AddHours(-3)
-            }
-        };
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync("Provide a lake name of at most 100 characters");
+            return badResponse;
+        }
 
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(mockReports);
-        return response;
+        try
+        {
+            var connectionString = GetConnectionString();
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                _logger.LogError("Database connection string not configured");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Database connection not configured");
+                return errorResponse;
+            }
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+            var sql = @"
+                SELECT TOP 100 ReportId, LakeName, Latitude, Longitude, IceThicknessIn,
+                    MeasurementType, SurfaceType, Notes, CreatedAt
+                FROM dbo.IceReports
+                WHERE LakeName = @LakeName
+                  AND CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
+                  AND ExpiresAt > SYSUTCDATETIME() AND IsFlagged = 0
+                ORDER BY CreatedAt DESC;";
+            await using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@LakeName", System.Data.SqlDbType.NVarChar, 100).Value = lakeName.Trim();
+            var reports = await ReadReportsAsync(command);
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(reports);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving lake reports");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("Could not load lake reports. Please try again later.");
+            return errorResponse;
+        }
     }
 
     [Function("DetectLakeByLocation")]
@@ -613,19 +547,13 @@ public class ReportsFunction
 
         _logger.LogInformation("Detecting lake by GPS coordinates");
 
-        var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-        _logger.LogInformation($"Request body: {requestBody}");
-        
-        var detectRequest = JsonSerializer.Deserialize<DetectLakeRequest>(requestBody, new JsonSerializerOptions
+        var (detectRequest, requestError) = await ReadRequestAsync<DetectLakeRequest>(req);
+        if (requestError is not null) return requestError;
+        if (detectRequest is null) throw new InvalidOperationException("Request validation returned no value.");
+        if (!IsValidLocation(detectRequest.Latitude, detectRequest.Longitude))
         {
-            PropertyNameCaseInsensitive = true
-        });
-
-        if (detectRequest == null)
-        {
-            _logger.LogWarning("Invalid request body - failed to deserialize");
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResponse.WriteStringAsync("Invalid request body");
+            await badResponse.WriteStringAsync("Provide valid latitude and longitude");
             return badResponse;
         }
 
@@ -633,8 +561,7 @@ public class ReportsFunction
 
         try
         {
-            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
-                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = GetConnectionString();
             if (string.IsNullOrEmpty(connectionString))
             {
                 _logger.LogError("Database connection string not configured");
@@ -646,27 +573,6 @@ public class ReportsFunction
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
 
-            // First, let's check what's actually in the database
-            var debugSql = @"
-                SELECT TOP 10
-                    LakeName,
-                    Latitude,
-                    Longitude,
-                    CreatedAt,
-                    ExpiresAt
-                FROM IceReports
-                ORDER BY CreatedAt DESC;";
-            
-            await using var debugCommand = new SqlCommand(debugSql, connection);
-            await using var debugReader = await debugCommand.ExecuteReaderAsync();
-            
-            _logger.LogInformation("=== DATABASE CONTENTS (Last 10 reports) ===");
-            while (await debugReader.ReadAsync())
-            {
-                _logger.LogInformation($"Lake: {debugReader["LakeName"]}, Lat: {debugReader["Latitude"]}, Lng: {debugReader["Longitude"]}, Expires: {debugReader["ExpiresAt"]}");
-            }
-            await debugReader.CloseAsync();
-
             // Find lakes within ~500m radius (approximately 0.005 degrees)
             // Return all matching lakes sorted by report count and recency
             var sql = @"
@@ -676,10 +582,11 @@ public class ReportsFunction
                     AVG(Longitude) as AvgLongitude,
                     COUNT(*) as ReportCount,
                     MAX(CreatedAt) as LastReportDate
-                FROM IceReports
+                FROM dbo.IceReports
                 WHERE LakeName IS NOT NULL 
                     AND LakeName != ''
                     AND CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
+                    AND ExpiresAt > SYSUTCDATETIME() AND IsFlagged = 0
                     AND Latitude BETWEEN @Lat - 0.005 AND @Lat + 0.005
                     AND Longitude BETWEEN @Lng - 0.005 AND @Lng + 0.005
                 GROUP BY LakeName
@@ -766,17 +673,16 @@ public class ReportsFunction
 
         var query = req.Query["q"] ?? "";
         
-        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 2 || query.Length > 100)
         {
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResponse.WriteStringAsync("Query must be at least 2 characters");
+            await badResponse.WriteStringAsync("Query must be between 2 and 100 characters");
             return badResponse;
         }
 
         try
         {
-            var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") 
-                ?? Environment.GetEnvironmentVariable("SqlConnectionString");
+            var connectionString = GetConnectionString();
             if (string.IsNullOrEmpty(connectionString))
             {
                 _logger.LogError("Database connection string not configured");
@@ -796,11 +702,12 @@ public class ReportsFunction
                     AVG(Longitude) as AvgLongitude,
                     COUNT(*) as ReportCount,
                     MAX(CreatedAt) as LastReportDate
-                FROM IceReports
+                FROM dbo.IceReports
                 WHERE LakeName IS NOT NULL 
                     AND LakeName != ''
                     AND LakeName LIKE @Query
                     AND CreatedAt > DATEADD(DAY, -180, SYSUTCDATETIME())
+                    AND ExpiresAt > SYSUTCDATETIME() AND IsFlagged = 0
                 GROUP BY LakeName
                 ORDER BY ReportCount DESC, MAX(CreatedAt) DESC;";
 
@@ -833,6 +740,94 @@ public class ReportsFunction
             await errorResponse.WriteStringAsync("An error occurred while searching");
             return errorResponse;
         }
+    }
+
+    private static string? GetConnectionString()
+    {
+        var azureConnection = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection");
+        return !string.IsNullOrWhiteSpace(azureConnection)
+            ? azureConnection
+            : Environment.GetEnvironmentVariable("SqlConnectionString");
+    }
+
+    private static bool IsValidLocation(double latitude, double longitude) =>
+        double.IsFinite(latitude) && double.IsFinite(longitude) &&
+        latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+
+    private static bool TryParseCoordinate(string? value, out double coordinate) =>
+        double.TryParse(value, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out coordinate) && double.IsFinite(coordinate);
+
+    private async Task<(T? Value, HttpResponseData? Error)> ReadRequestAsync<T>(HttpRequestData req) where T : class
+    {
+        const int maxBodyBytes = 16384;
+        var buffer = new byte[maxBodyBytes + 1];
+        var length = 0;
+        while (length < buffer.Length)
+        {
+            var read = await req.Body.ReadAsync(buffer.AsMemory(length));
+            if (read == 0) break;
+            length += read;
+        }
+        if (length > maxBodyBytes)
+        {
+            _logger.LogWarning("HTTP request body exceeded the 16 KiB limit");
+            var response = req.CreateResponse(HttpStatusCode.RequestEntityTooLarge);
+            await response.WriteStringAsync("Request body must not exceed 16 KiB");
+            return (null, response);
+        }
+        try
+        {
+            var value = JsonSerializer.Deserialize<T>(buffer.AsSpan(0, length), new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (value is not null) return (value, null);
+        }
+        catch (JsonException)
+        {
+            _logger.LogWarning("Invalid JSON request body");
+        }
+        var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+        await badResponse.WriteStringAsync("Provide a valid JSON request body");
+        return (null, badResponse);
+    }
+
+    private static async Task<List<IceReport>> ReadReportsAsync(SqlCommand command)
+    {
+        await using var reader = await command.ExecuteReaderAsync();
+        var reports = new List<IceReport>();
+        while (await reader.ReadAsync())
+        {
+            var storedNotes = reader["Notes"] as string;
+            string? location = null;
+            List<string>? quality = null;
+            var noteParts = new List<string>();
+            foreach (var part in (storedNotes ?? "").Split(" | ", StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part.StartsWith("Location:", StringComparison.Ordinal))
+                    location = part["Location:".Length..].Trim();
+                else if (part.StartsWith("Conditions:", StringComparison.Ordinal))
+                    quality = part["Conditions:".Length..].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                else
+                    noteParts.Add(part);
+            }
+            reports.Add(new IceReport
+            {
+                Id = reader["ReportId"].ToString(),
+                LakeName = reader["LakeName"] as string,
+                Latitude = Convert.ToDouble(reader["Latitude"]),
+                Longitude = Convert.ToDouble(reader["Longitude"]),
+                Thickness = Convert.ToDouble(reader["IceThicknessIn"]),
+                SurfaceType = (reader["SurfaceType"] as string)?.ToLowerInvariant(),
+                IsMeasured = (reader["MeasurementType"] as string) == "Measured",
+                CreatedAt = DateTime.SpecifyKind(reader.GetDateTime(reader.GetOrdinal("CreatedAt")), DateTimeKind.Utc),
+                Location = location,
+                IceQuality = quality,
+                Notes = noteParts.Count > 0 ? string.Join(" | ", noteParts) : null
+            });
+        }
+        return reports;
     }
 
     // Helper function to calculate distance between two GPS coordinates in kilometers

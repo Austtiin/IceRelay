@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import React from "react";
+import { createPageMetadata } from "../../lib/metadata";
 
 export const metadata: Metadata = {
-  title: "Ice Thickness Map | Current Ice Conditions & Safety Reports | Ice Relay",
-  description:
+  ...createPageMetadata(
+    "Ice Thickness Map | Community Lake Observations | Ice Relay",
     "Interactive map of community-submitted ice thickness reports across the Upper Midwest. Reports are unverified and do not determine whether ice is safe.",
-  alternates: {
-    canonical: "/map/",
-  },
+    "/map/",
+  ),
   other: {
     'mapbox:telemetry': 'false',
   },

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import Dialog from '@mui/material/Dialog';
 import { trackLocationUsage, trackLakeSearch } from '../lib/analytics';
 import type { LakeSuggestion } from '../../lib/api';
 
@@ -425,29 +426,14 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
     }
   };
 
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
-
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.6)',
-      zIndex: 200,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem',
-      overflowY: 'auto'
-    }}>
+    <Dialog
+      open
+      onClose={() => { if (!isSubmitting) onClose(); }}
+      aria-labelledby="submit-report-title"
+      maxWidth={false}
+      slotProps={{ paper: { sx: { maxWidth: 900, width: '100%', margin: 2, background: 'transparent', boxShadow: 'none' } } }}
+    >
       <div style={{
         background: 'var(--background)',
         borderRadius: '1rem',
@@ -467,11 +453,13 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+          <h2 id="submit-report-title" style={{ fontSize: '1.5rem', fontWeight: 700 }}>
             Submit Ice Report
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close report form"
+            disabled={isSubmitting}
             style={{
               background: 'transparent',
               border: 'none',
@@ -1035,7 +1023,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
 
               {/* Thickness Slider */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
+                <label htmlFor="report-thickness" style={{
                   display: 'block',
                   fontWeight: 600,
                   marginBottom: '0.75rem',
@@ -1045,6 +1033,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                   Ice Thickness: <span style={{ color: 'var(--primary-medium)', fontSize: '1.25rem' }}>{formData.thickness}&quot;</span>
                 </label>
                 <input
+                  id="report-thickness"
                   type="range"
                   min="0"
                   max="35"
@@ -1109,7 +1098,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                         value={type.value}
                         checked={formData.surfaceType === type.value}
                         onChange={(e) => setFormData({ ...formData, surfaceType: e.target.value })}
-                        style={{ display: 'none' }}
+                        style={{ marginRight: '0.5rem' }}
                       />
                       <div style={{ fontWeight: formData.surfaceType === type.value ? 600 : 400 }}>
                         {type.label}
@@ -1136,7 +1125,7 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
                   <input
                     type="checkbox"
                     checked={formData.isMeasured}
-                    onChange={(e) => setFormData({ ...formData, isMeasured: e.target.checked })}
+                    onChange={(e) => setFormData({ ...formData, isMeasured: e.target.checked, method: e.target.checked ? 'drill' : 'visual' })}
                     style={{ marginRight: '0.5rem', width: '18px', height: '18px' }}
                   />
                    I drilled/measured it (not just observed)
@@ -1509,6 +1498,6 @@ export default function SubmitReportForm({ onClose, onSubmit }: SubmitReportForm
           </div>
         </form>
       </div>
-    </div>
+    </Dialog>
   );
 }

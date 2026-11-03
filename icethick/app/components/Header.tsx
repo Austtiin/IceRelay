@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { warmMapConnection } from '../../lib/map-preload';
 
 interface HeaderProps {
@@ -12,6 +12,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const preloadMap = () => {
     warmMapConnection();
     router.prefetch('/map/');
@@ -56,7 +57,7 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav style={{
+        <nav aria-label="Main navigation" style={{
           display: 'none',
           gap: '0.5rem',
           alignItems: 'center'
@@ -71,6 +72,7 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             borderRadius: '0.5rem',
             transition: 'background 0.2s'
           }}
+          aria-current={pathname === '/' ? 'page' : undefined}
           onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
           onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
             Home
@@ -84,11 +86,12 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             borderRadius: '0.5rem',
             transition: 'background 0.2s'
           }}
+          aria-current={pathname === '/near-me/' ? 'page' : undefined}
           onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
           onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-            Explore
+            Find reports
           </Link>
-          <Link href="/map/" onFocus={preloadMap} onTouchStart={preloadMap} style={{
+          <Link href="/map/" aria-current={pathname === '/map/' ? 'page' : undefined} onFocus={preloadMap} onTouchStart={preloadMap} style={{
             padding: '0.25rem 0.75rem',
             color: 'var(--foreground)',
             textDecoration: 'none',
@@ -113,15 +116,22 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
             borderRadius: '0.5rem',
             transition: 'background 0.2s'
           }}
+          aria-current={pathname === '/safety-guide/' ? 'page' : undefined}
           onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
           onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-            Safety
+            Safety guide
+          </Link>
+          <Link href="/resources/" className="header-site-link" aria-current={pathname === '/resources/' ? 'page' : undefined}>
+            Resources
+          </Link>
+          <Link href="/about/" className="header-site-link" aria-current={pathname === '/about/' ? 'page' : undefined}>
+            About
           </Link>
           <button
             onClick={onNewReport ?? (() => router.push('/?newReport=true'))}
             style={{
-              background: 'white',
-              color: 'var(--primary-dark)',
+              background: 'var(--primary-dark)',
+              color: 'white',
               border: '1px solid var(--primary-dark)',
               borderRadius: '0.25rem',
               padding: '0.5rem 0.875rem',
@@ -133,12 +143,10 @@ export default function Header({ onMenuToggle, onNewReport }: HeaderProps) {
               boxShadow: 'none'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--primary-dark)';
-              e.currentTarget.style.color = 'white';
+              e.currentTarget.style.background = 'var(--primary-medium)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'white';
-              e.currentTarget.style.color = 'var(--primary-dark)';
+              e.currentTarget.style.background = 'var(--primary-dark)';
             }}>
             Share a report
           </button>

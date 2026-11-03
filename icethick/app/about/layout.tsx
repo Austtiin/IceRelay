@@ -1,14 +1,11 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "../../lib/metadata";
 import React from "react";
 
-export const metadata: Metadata = {
-  title: "About Ice Relay | Community Ice Thickness & Lake Ice Safety Reports",
-  description:
-    "Learn about Ice Relay, a community-driven platform for sharing unverified ice thickness reports across Upper Midwest lakes.",
-  alternates: {
-    canonical: "/about/",
-  },
-};
+export const metadata = createPageMetadata(
+  "About Ice Relay | Independent Community Ice Reports",
+  "Learn about Ice Relay, an independent community project for sharing unverified ice thickness observations across Upper Midwest lakes.",
+  "/about/",
+);
 
 export default function AboutLayout({
   children,

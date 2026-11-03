@@ -1,12 +1,10 @@
-import { Metadata } from 'next';
+import { createPageMetadata } from '../../lib/metadata';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy | Data Collection & User Privacy | Ice Relay',
-  description: 'Ice Relay privacy policy explaining how we collect, use, and protect your data when reporting ice thickness and using our ice safety platform.',
-  alternates: {
-    canonical: '/privacy-policy/',
-  },
-};
+export const metadata = createPageMetadata(
+  'Privacy Policy | Data Collection & User Privacy | Ice Relay',
+  'Ice Relay privacy policy explaining how we collect, use, and protect your data when reporting ice thickness and using our community reporting website.',
+  '/privacy-policy/',
+);
 
 export default function PrivacyPolicyLayout({
   children,

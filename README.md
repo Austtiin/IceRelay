@@ -6,6 +6,7 @@ Ice Relay is a community-reporting project for lake ice observations in the Uppe
 
 - `icethick/` — Next.js 16 frontend, configured for static export to Azure Static Web Apps
 - `api/` — .NET 10 isolated Azure Functions API backed by Azure SQL
+- `api/sql/001-initialize.sql` — repeat-safe table/index setup and legacy notes-capacity migration
 - `DB_Schema.md` — current database schema notes
 - `DEPLOYMENT.md` — deployment configuration and release steps
 
@@ -29,7 +30,9 @@ To check the frontend:
 ```powershell
 cd icethick
 npm run lint
+npm test
 npm run build
+npm run verify:export
 ```
 
 ## Deployment
@@ -38,10 +41,78 @@ The frontend GitHub Actions workflow builds and publishes `icethick/out` to Azur
 
 ## API status
 
-The frontend currently uses report submission, lake-name search, map-bounds queries, and lake detection. The nearby-report and per-lake report endpoints are placeholders and currently return mock data; do not use them as a source of real conditions.
+The frontend uses report submission, lake-name search, map bounds, and lake detection.
+Nearby and per-lake endpoints also query real SQL data; no sample reports are returned.
+Apply `api\sql\001-initialize.sql` before deploying the updated API.
 
-Lake search and map data are limited to reports from the previous 180 days. Report expiry and retention are an area to align before increasing coverage or redeploying.
+Public queries exclude flagged/expired reports and records older than 180 days.
+Expiry hides reports but does not delete stored records; align storage retention
+and the published privacy policy before launch.
 
 ## Safety
 
 Ice conditions vary within a single body of water and change with weather, ice quality, currents, and other local factors. Ice Relay reports are signals from the community, not verified safety guidance. Follow the relevant state agency's current advice, check conditions yourself, and stay off the ice when uncertain.
+
+## Public website and community growth
+
+The homepage introduces the project, links to regional map views, and encourages firsthand
+observations. `/contribute/` explains the reporting workflow, what makes a useful report,
+and how people can introduce the project to their local community. Report calls to action
+reuse the existing submission form; no account or pre-existing lake listing is required.
+API failures must remain distinct from an empty report list.
+
+Page metadata uses `icethick/lib/metadata.ts` to keep canonical, Open Graph, and Twitter
+titles, descriptions, and URLs aligned. The root includes WebSite structured data;
+resource pages have matching breadcrumb structured data. Add public routes to
+`icethick/lib/site.ts`; `app/sitemap.ts` and `app/robots.ts` generate discovery
+files using the same site origin. `verify:export` checks the actual built output.
+
+`/resources/`, `/community-ice-reports/`, and `/report-poor-ice-conditions/` explain
+the reporting process and its limits. The current form requires a positive
+firsthand thickness measurement, not a visual guess or a hazard-only submission.
+Maps expose notes and conditions; unimplemented flag buttons now link to contact.
+
+### SEO and backlink priorities
+
+1. **Measure discovery after deployment.** Verify ownership in Google Search Console and
+   Bing Webmaster Tools, submit the sitemap, and monitor indexing, relevant lake-search
+   queries, mobile performance, and organic visits. A sitemap or structured data alone
+   does not guarantee indexing or better rankings.
+2. **Earn relevant recommendations.** Ask lake associations, fishing clubs, local bait
+   shops, and regional outdoor publications to consider linking to the homepage or
+   reporting guide from genuinely relevant resource pages. Explain that reports are
+   unverified. Do not claim partnerships or endorsements without permission.
+3. **Make sharing useful.** Offer a short, factual introduction: "Ice Relay collects
+   community ice thickness observations across the Upper Midwest. Reports are unverified,
+   not safety assessments. Browse local observations or contribute a firsthand report."
+   Request permission before sharing in groups. Avoid bought links, link exchanges,
+   mass comments, and duplicate promotional pages. Linking out to state agencies is a
+   useful citation, not an inbound backlink.
+4. **Build indexable lake content only from real data.** The interactive map's query-string
+   views are navigation shortcuts, not separate indexable lake pages. A future lake-page
+   feature should have stable URLs, meaningful server-rendered observations, report dates,
+   source limitations, unique metadata, and sitemap entries. Align report retention
+   and establish meaningful lake content first; never publish mock conditions or
+   thin state/lake doorway pages for SEO.
+5. **Improve reporting quality before expanding claims.** Prioritize report freshness,
+   corrections/moderation, accessible submission dialogs, and reliable submission
+   feedback. Encourage new observations, not duplicate reports or risky trips onto ice.
+   Track successful contributions rather than rewarding submission volume alone.
+
+These are follow-up outreach and product priorities, not completed backlink placements
+or search-console configuration. Publishing the code does not perform those external actions.
+
+## Production settings and release checks
+
+See [DB_Schema.md](./DB_Schema.md) for all SQL columns and the command to initialize
+the database. See [DEPLOYMENT.md](./DEPLOYMENT.md) and
+`api/azure.settings.example.json` for the exact Functions settings and a user-run
+Azure CLI command. Real SQL, storage, and HMAC credentials stay in Key Vault or
+protected backend settings, never in `NEXT_PUBLIC_*` or source control.
+
+The static CSP restricts resource origins and removes `unsafe-eval`, while retaining
+inline script/style support needed by this static Next.js/Emotion build. The build
+adds the configured API origin and makes PR preview responses `noindex`. HSTS,
+anti-framing, referrer, permissions, and MIME-sniffing headers are configured.
+Verify actual headers, HTTPS, 404 status, maps, consent, and API behavior after
+deployment; a local build does not verify Azure configuration or DNS.

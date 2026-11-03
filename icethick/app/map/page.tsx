@@ -26,6 +26,10 @@ interface Report {
   surfaceType?: string;
   Location?: string;
   location?: string;
+  Notes?: string;
+  notes?: string;
+  IceQuality?: string[];
+  iceQuality?: string[];
 }
 
 const subscribeToClient = () => () => {};
@@ -188,14 +192,22 @@ export default function MapPage() {
           }
         });
 
-        const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-          <div style="padding: 8px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: var(--primary-dark);">${lakeName}</h3>
-            <p style="margin: 4px 0; font-size: 0.9rem;"><strong>Thickness:</strong> ${thickness}"</p>
-            <p style="margin: 4px 0; font-size: 0.9rem;"><strong>Surface:</strong> ${surfaceType}</p>
-            <p style="margin: 4px 0; font-size: 0.85rem; color: var(--text-secondary);">${getTimeAgo(createdAt)}</p>
-          </div>
-        `);
+        const popupContent = document.createElement('div');
+        popupContent.className = 'map-report-popup';
+        const heading = document.createElement('h3');
+        heading.textContent = lakeName;
+        popupContent.appendChild(heading);
+        for (const text of [
+          `Thickness: ${thickness}" reported`,
+          `Surface: ${surfaceType}`,
+          getTimeAgo(createdAt),
+          'Unverified community observation, not a safety assessment.',
+        ]) {
+          const paragraph = document.createElement('p');
+          paragraph.textContent = text;
+          popupContent.appendChild(paragraph);
+        }
+        const popup = new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupContent);
 
         marker = new mapboxgl.Marker(el)
           .setLngLat([lng, lat])
@@ -392,6 +404,7 @@ export default function MapPage() {
         onClose={() => setIsMenuOpen(false)}
         onNewReport={() => router.push('/?newReport=true')}
       />
+      <h1 className="sr-only">Community ice thickness report map</h1>
 
       {!isMounted ? (
         // Prevent hydration mismatch by showing loading state until mounted
@@ -611,12 +624,16 @@ export default function MapPage() {
                     </Box>
                   ) : null}
 
+                  {(selectedReport.IceQuality || selectedReport.iceQuality)?.length ? (
+                    <Box sx={{ mb: 2 }}><Typography variant="subtitle2">Reported conditions</Typography><Typography variant="body2">{(selectedReport.IceQuality || selectedReport.iceQuality)?.join(', ')}</Typography></Box>
+                  ) : null}
+                  {selectedReport.Notes || selectedReport.notes ? (
+                    <Box sx={{ mb: 2 }}><Typography variant="subtitle2">Observation notes</Typography><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{selectedReport.Notes || selectedReport.notes}</Typography></Box>
+                  ) : null}
                   <Button
                     fullWidth
                     variant="outlined"
-                    onClick={() => {
-                      alert('Flag feature coming soon! This will allow you to report incorrect information.');
-                    }}
+                    href="/contact/"
                     sx={{ 
                       marginTop: '16px',
                       marginBottom: '8px',
@@ -725,7 +742,7 @@ export default function MapPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        alert('Flag feature coming soon! This will allow you to report incorrect information.');
+                        router.push('/contact/');
                       }}
                       style={{
                         marginTop: '8px',
@@ -748,7 +765,7 @@ export default function MapPage() {
                         e.currentTarget.style.borderColor = '#ccc';
                       }}
                     >
-                       Flag
+                       Report an issue
                     </button>
                   </div>
                   );

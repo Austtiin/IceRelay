@@ -8,11 +8,15 @@ import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import SubmitReportForm from '../components/SubmitReportForm';
 import type { ReportData } from '../components/SubmitReportForm';
-import AdBox from '../components/AdBox';
 import { api } from '../../lib/api';
 import type { LakeSuggestion } from '../../lib/api';
 import { iceCoverageStates } from '../../lib/ice-coverage';
 import { trackReportSubmission } from '../lib/analytics';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 export default function NearMePage() {
   const router = useRouter();
@@ -175,11 +179,6 @@ export default function NearMePage() {
         {/* Lake Selection */}
         <section style={{ padding: '2rem 0 1rem 0' }}>
           <div className="container" style={{ maxWidth: '800px' }}>
-            {/* Small ad near the top of the Near Me flow */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <AdBox />
-            </div>
-
             <div style={{
               background: 'white',
               padding: '1.5rem',
@@ -546,97 +545,26 @@ export default function NearMePage() {
       <Footer />
 
       {/* Lake Confirmation Dialog */}
-      {showLakeConfirmation && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem'
-          }}
-          onClick={() => setShowLakeConfirmation(false)}
-        >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '100%',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              color: 'var(--primary-dark)',
-              marginBottom: '1rem',
-              textAlign: 'center'
-            }}>
-              Are you currently on the lake?
-            </h2>
-            <p style={{
-              fontSize: '0.95rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1.75rem',
-              textAlign: 'center',
-              lineHeight: 1.6
-            }}>
-              Please submit only while you are physically at the lake you are measuring. GPS coordinates provide location context, but do not independently verify the report or ice conditions.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLakeConfirmation(false);
-                  setNotification({
-                    message: 'Please wait until you are actually on the lake before adding a report.',
-                    type: 'warning'
-                  });
-                }}
-                style={{
-                  minWidth: '120px',
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '0.5rem',
-                  border: '1px solid var(--border-color)',
-                  background: 'white',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                No
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLakeConfirmation(false);
-                  setIsSubmitFormOpen(true);
-                }}
-                style={{
-                  minWidth: '120px',
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '0.5rem',
-                  border: 'none',
-                  background: 'var(--primary-dark)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Yes, I&apos;m on the lake
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={showLakeConfirmation} onClose={() => setShowLakeConfirmation(false)} aria-labelledby="lake-confirmation-title" maxWidth="sm" fullWidth>
+        <DialogTitle id="lake-confirmation-title">Are you currently at the lake?</DialogTitle>
+        <DialogContent>
+          <p>Please submit only while physically at the lake you are measuring. GPS coordinates provide location context, but do not independently verify the report or ice conditions.</p>
+          <p style={{ marginTop: '1rem' }}>Never venture onto uncertain ice to collect a report.</p>
+        </DialogContent>
+        <DialogActions sx={{ padding: 3, flexWrap: 'wrap', gap: 1 }}>
+          <Button variant="outlined" onClick={() => {
+            setShowLakeConfirmation(false);
+            setNotification({
+              message: 'Please wait until you are physically at the lake before adding a report. Never enter uncertain ice to collect a report.',
+              type: 'warning'
+            });
+          }}>No</Button>
+          <Button variant="contained" onClick={() => {
+            setShowLakeConfirmation(false);
+            setIsSubmitFormOpen(true);
+          }}>Yes, I&apos;m at the lake</Button>
+        </DialogActions>
+      </Dialog>
 
       {isSubmitFormOpen && (
         <SubmitReportForm

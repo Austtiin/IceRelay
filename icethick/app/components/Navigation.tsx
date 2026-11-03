@@ -52,7 +52,7 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
       />
 
       {/* Sidebar - Slides from RIGHT */}
-      <nav style={{
+      <nav aria-label="Mobile navigation" style={{
         position: 'fixed',
         top: 0,
         right: 0,
@@ -211,6 +211,12 @@ export default function Navigation({ isOpen, onClose, onNewReport }: NavigationP
           }} />
 
           {/* Secondary Navigation - Bottom */}
+          <Link href="/resources/" onClick={onClose} className="mobile-site-link">
+            Ice reporting resources
+          </Link>
+          <Link href="/contribute/" onClick={onClose} className="mobile-site-link">
+            How to contribute
+          </Link>
           <Link
             href="/safety-guide"
             onClick={onClose}

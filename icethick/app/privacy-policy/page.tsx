@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import Header from '../components/Header';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
@@ -13,7 +14,7 @@ const pageStyles = {
 
 export default function PrivacyPolicyPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const lastUpdated = 'November 3, 2026';
 
   return (
     <div style={pageStyles.container}>
@@ -49,7 +50,7 @@ export default function PrivacyPolicyPage() {
             </h2>
             <ul style={{ marginLeft: '1.5rem', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
               <li>Ice report details you submit (lake name, ice thickness, notes, etc.).</li>
-              <li>Approximate GPS location with each report to verify it is actually on a lake.</li>
+              <li>GPS coordinates with each report. Stored coordinates can be precise and are publicly displayed; location does not verify a lake name, measurement, or ice conditions.</li>
               <li>Basic technical data from your browser (such as IP address, device type, and logs) for security and analytics.</li>
             </ul>
           </section>
@@ -93,9 +94,24 @@ export default function PrivacyPolicyPage() {
             </div>
             <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
               When you submit an ice thickness report, the data (lake name, thickness, location, notes, etc.) becomes 
-              publicly visible to all users. Reports are associated with approximate GPS coordinates but not linked to 
-              your personal identity. We implement spam prevention and content moderation to filter inappropriate content, 
-              but cannot guarantee the accuracy of any user-submitted information.
+              publicly visible to all users. Reports include GPS coordinates and do not require an account.
+              Do not include names, contact details, or other personal information in public notes.
+              The report database stores an HMAC-hashed client identifier for abuse controls, not the raw IP
+              in the report record. Hosting and technical logs may still process IP addresses.
+              Automated validation and abuse limits do not guarantee accuracy or complete moderation.
+            </p>
+          </section>
+
+          <section style={{ marginBottom: '2rem', lineHeight: 1.7 }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary-dark)' }}>
+              Report Visibility and Storage
+            </h2>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+              Public queries exclude flagged or expired reports and observations older than 180 days.
+              Expiry removes a report from public listings; it does not automatically delete the stored record.
+              There is currently no automated deletion schedule. For a request about a report or its removal,
+              <Link href="/contact/"> contact us</Link> with the lake name and submission date. Do not assume
+              an expired report has been deleted or that a publicly visible report describes current conditions.
             </p>
           </section>
 
@@ -106,7 +122,8 @@ export default function PrivacyPolicyPage() {
             <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
               Ice Relay may use cookies or similar technologies for things like remembering your preferences, measuring
               traffic, and keeping the site secure. You can control cookies in your browser settings. For more detail,
-              see our Cookie Policy.
+              see our <Link href="/cookie-policy/">Cookie Policy</Link>. Essential-only consent leaves optional
+              analytics disabled; accepting all enables configured analytics services.
             </p>
           </section>
 

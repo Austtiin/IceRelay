@@ -6,6 +6,10 @@ import Link from 'next/link';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
@@ -13,8 +17,8 @@ import ReportCard from './components/ReportCard';
 import SubmitReportForm, { ReportData } from './components/SubmitReportForm';
 import CookieConsent from './components/CookieConsent';
 import Notification, { NotificationType } from './components/Notification';
-import AdBox from './components/AdBox';
 import { trackReportSubmission } from './lib/analytics';
+import { iceCoverageStates } from '../lib/ice-coverage';
 
 interface NotificationState {
   message: string;
@@ -28,6 +32,7 @@ interface Report {
   timeAgo: string;
   location?: string;
   quality?: string[];
+  notes?: string;
   reportCount: number;
   surfaceType: string;
   isMeasured: boolean;
@@ -97,6 +102,7 @@ export default function Home() {
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
+  const [reportsError, setReportsError] = useState(false);
 
   const closeSubmitForm = () => {
     setIsSubmitFormOpen(false);
@@ -110,6 +116,7 @@ export default function Home() {
     try {
       const { api } = await import('../lib/api');
       setIsLoadingReports(true);
+      setReportsError(false);
       const fetchedReports = await api.getReports();
       
       console.log('[FetchReports] Raw API response:', fetchedReports);
@@ -127,6 +134,7 @@ export default function Home() {
           createdAt: createdAt,
           location: report.Location || report.location,
           quality: report.IceQuality || report.iceQuality || [],
+          notes: report.Notes || report.notes,
           reportCount: 1, // This would need aggregation in the API
           surfaceType: formatSurfaceType(report.SurfaceType || report.surfaceType),
           isMeasured: report.IsMeasured !== undefined ? report.IsMeasured : report.isMeasured
@@ -153,6 +161,7 @@ export default function Home() {
         type: 'error'
       });
       setReports([]);
+      setReportsError(true);
     } finally {
       setIsLoadingReports(false);
     }
@@ -176,7 +185,7 @@ export default function Home() {
   const handleLakeConfirmNo = () => {
     setShowLakeConfirmation(false);
     setNotification({
-      message: 'You must be on the lake to submit an accurate report. Please visit the lake and try again.',
+      message: 'Only share firsthand observations while at the lake. Never make a trip onto uncertain ice to collect a report.',
       type: 'warning'
     });
   };
@@ -231,13 +240,13 @@ export default function Home() {
       
       // Success notification - set BEFORE closing form
       setNotification({
-        message: 'Success! Your ice report has been submitted and will help keep the community safe. Thank you!',
+        message: 'Your report has been submitted. Thank you for helping others understand what you observed.',
         type: 'success'
       });
       
       // Close form after a brief delay to ensure notification is set
       setTimeout(() => {
-        setIsSubmitFormOpen(false);
+        closeSubmitForm();
       }, 100);
 
       // Refresh the reports list to show the new report
@@ -265,11 +274,12 @@ export default function Home() {
         message: userMessage,
         type: 'error'
       });
+      throw error;
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="home-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <CookieConsent />
       
       {/* Notification Toast */}
@@ -305,17 +315,18 @@ export default function Home() {
           <div className="home-hero-overlay" aria-hidden="true" />
           
           <div className="container home-hero-content" style={{ position: 'relative', zIndex: 3 }}>
-            <p className="home-hero-eyebrow">ICE RELAY · UPPER MIDWEST</p>
             <h1 id="home-title" className="home-hero-title" style={{
               fontSize: '3.25rem',
               fontWeight: 700,
               marginBottom: '1.25rem',
               letterSpacing: '-0.035em'
             }}>
-              Community ice thickness reports for your local lakes.
+              Local ice reports.<br />Shared winter knowledge.
             </h1>
             <p className="home-hero-description">
-              Explore recent, community-submitted observations from lakes across the Upper Midwest. Reports are unverified and are not a measure of ice safety.
+              Find community ice thickness reports across the Upper Midwest, or pass along
+              a firsthand measurement from your lake. Every report adds local context.
+              Reports are unverified, not a measure of ice safety.
             </p>
             <div className="home-hero-actions" style={{
               display: 'flex',
@@ -326,7 +337,7 @@ export default function Home() {
               <Button
                 variant="contained"
                 size="large"
-                href="/near-me"
+                onClick={handleNewReportClick}
                 sx={{
                   bgcolor: 'white',
                   color: '#18364f',
@@ -338,12 +349,12 @@ export default function Home() {
                   },
                 }}
               >
-                Search your lake
+                Share a report
               </Button>
               <Button
                 variant="outlined"
                 size="large"
-                onClick={handleNewReportClick}
+                href="/near-me/"
                 sx={{
                   borderColor: 'rgba(255,255,255,0.65)',
                   color: 'white',
@@ -355,32 +366,41 @@ export default function Home() {
                   },
                 }}
               >
-                Share an observation
+                Find your lake
               </Button>
             </div>
           </div>
           
         </section>
 
+        <nav className="home-wayfinding" aria-label="Homepage sections">
+          <div className="container">
+            <a href="#recent-reports">Recent observations</a>
+            <a href="#region-heading">Explore your state</a>
+            <a href="#contribution-heading">Help your community</a>
+            <a href="#home-resources-heading">Reporting resources</a>
+          </div>
+        </nav>
+
         <section className="home-introduction" aria-labelledby="community-heading">
           <div className="container home-introduction-content">
             <div>
-              <h2 id="community-heading">A community resource for the winter season</h2>
+              <h2 id="community-heading">Built around lakes. Powered by people.</h2>
               <p>
-                Ice Relay brings together recent ice thickness observations from lakes across
-                the Upper Midwest. Search for a lake, explore nearby reports, and learn what
-                other visitors have observed.
+                Winter observations are often scattered across conversations and local forums.
+                Ice Relay gives them a shared home: lake names, locations, thickness readings,
+                and notes that other visitors can explore together.
               </p>
               <Link href="/about/">Learn about Ice Relay</Link>
             </div>
             <div>
-              <h2>Don&apos;t see your lake listed?</h2>
+              <h2>Your report could be the first.</h2>
               <p>
-                Start by adding your lake for the community. Share a firsthand observation
-                through the report form when you are at the lake. Never venture onto
-                uncertain ice to collect a report.
+                You don&apos;t need an account or an existing lake listing. If you are already
+                at a lake and have a firsthand measurement, share the reading with local conditions.
+                Never venture onto uncertain ice to collect a report.
               </p>
-              <button type="button" onClick={handleNewReportClick}>Add your lake with a report</button>
+              <Link href="/contribute/">Learn how to make a useful report</Link>
             </div>
           </div>
         </section>
@@ -395,7 +415,6 @@ export default function Home() {
             <div className="safety-note" style={{
               background: '#edf4f8',
               border: '1px solid #d5e3ec',
-              borderLeft: '4px solid #577399',
               borderRadius: '0.5rem',
               padding: '1rem 1.25rem',
               display: 'flex',
@@ -403,14 +422,14 @@ export default function Home() {
               gap: '0.875rem'
             }}>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{
+                  <h2 style={{
                     fontSize: '0.95rem',
                   fontWeight: 700,
                   color: '#274d6b',
                   marginBottom: '0.4rem'
                 }}>
                   Use reports as context—not a safety assessment
-                </h3>
+                </h2>
                 <p style={{
                   fontSize: '0.85rem',
                   color: '#3e5363',
@@ -424,7 +443,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section style={{
+        <section id="recent-reports" aria-labelledby="recent-reports-heading" style={{
           padding: '3.5rem 0 4rem',
           background: 'white'
         }}>
@@ -433,7 +452,7 @@ export default function Home() {
               marginBottom: '2rem',
               textAlign: 'left'
             }}>
-              <h2 style={{
+              <h2 id="recent-reports-heading" style={{
                 fontSize: 'clamp(1.75rem, 4vw, 2.25rem)',
                 fontWeight: 700,
                 color: 'var(--primary-dark)',
@@ -444,6 +463,7 @@ export default function Home() {
               <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
                 Latest community-submitted observations
               </p>
+              <Link href="/map/" className="text-link">Explore the report map</Link>
             </div>
 
             {isLoadingReports ? (
@@ -473,13 +493,19 @@ export default function Home() {
                   Loading ice reports...
                 </Typography>
               </div>
+            ) : reportsError ? (
+              <div className="reports-status" role="status">
+                <h3>Reports are temporarily unavailable</h3>
+                <p>We couldn&apos;t reach the report service. This does not mean there are no reports or that any lake is safe.</p>
+                <Button variant="outlined" onClick={fetchReports}>Try loading reports again</Button>
+              </div>
             ) : reports.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
+                <Typography component="h3" variant="h6" color="text.secondary" gutterBottom>
                   No reports yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Be the first to submit an ice thickness report!
+                  Already at a lake with a firsthand observation? Help start the community record. Never go onto uncertain ice to make a report.
                 </Typography>
                 <Button
                   variant="contained"
@@ -504,6 +530,7 @@ export default function Home() {
                       timeAgo={report.timeAgo}
                       location={report.location}
                       quality={report.quality}
+                      notes={report.notes}
                       reportCount={report.reportCount}
                       surfaceType={report.surfaceType}
                       isMeasured={report.isMeasured}
@@ -527,11 +554,66 @@ export default function Home() {
                       },
                     }}
                   >
-                    View All Reports Near Me
+                    Find more lake reports
                   </Button>
                 </div>
               </>
             )}
+          </div>
+        </section>
+
+        <section className="site-section region-section" aria-labelledby="region-heading">
+          <div className="container">
+            <div className="section-heading-row">
+              <div>
+                <h2 id="region-heading">Explore the Upper Midwest</h2>
+                <p>Choose a state to move the map. Coverage grows with community submissions, not every lake has a report.</p>
+              </div>
+              <Link href="/near-me/" className="text-link">Search by lake name</Link>
+            </div>
+            <ul className="region-links">
+              {iceCoverageStates.map((state) => (
+                <li key={state.code}>
+                  <Link href={`/map/?lat=${state.latitude}&lng=${state.longitude}&zoom=6`}>
+                    {state.name}<span>Explore reports</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="site-section contribution-section" aria-labelledby="contribution-heading">
+          <div className="container contribution-layout">
+            <div>
+              <h2 id="contribution-heading">Pass your observation along.</h2>
+              <p>The map is only as useful as the people who contribute. A report from an overlooked lake or a fresh observation from a familiar one helps others see what has been reported.</p>
+              <div className="site-actions">
+                <button className="site-button" type="button" onClick={handleNewReportClick}>Share a report</button>
+                <Link href="/contribute/" className="text-link">Read the reporting guide</Link>
+              </div>
+              <p className="contribution-caution">Only report what you observed firsthand. Never take a risk to contribute.</p>
+            </div>
+            <ol className="reporting-steps">
+              <li><h3>Identify the lake and location</h3><p>Enable location access at the lake and confirm the lake name.</p></li>
+              <li><h3>Describe what you observed</h3><p>Include thickness, measurement method, surface conditions, and useful notes.</p></li>
+              <li><h3>Review before sharing</h3><p>Keep it factual. An observation describes one place and time, not a whole lake.</p></li>
+            </ol>
+          </div>
+        </section>
+
+        <section className="site-section home-resources" aria-labelledby="home-resources-heading">
+          <div className="container home-resource-layout">
+            <div>
+              <h2 id="home-resources-heading">More context.<br />Better contributions.</h2>
+              <p>Start with a measurement, read the whole observation, and keep its limits in mind. These guides help you make sense of community ice reports.</p>
+              <Link href="/resources/" className="text-link">All ice reporting resources</Link>
+            </div>
+            <ul className="home-resource-list">
+              <li><h3><Link href="/contribute/">Help report ice thickness near you</Link></h3><p>A practical guide to GPS, lake names, measurements, and useful notes. No account required.</p></li>
+              <li><h3><Link href="/community-ice-reports/">Understand self-reported ice conditions</Link></h3><p>Location, age, and surface conditions matter. A community observation is not a safety rating.</p></li>
+              <li><h3><Link href="/report-poor-ice-conditions/">Include poor ice conditions</Link></h3><p>Describe thin ice, cracks, and slush without making a lake-wide claim or taking a risk to report.</p></li>
+            </ul>
           </div>
         </section>
 
@@ -588,13 +670,15 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Support Ad near bottom of page */}
-        <section style={{ 
-          background: '#fafbfc', 
-          padding: '2rem 0 3rem'
-        }}>
-          <div className="container" style={{ maxWidth: '900px', display: 'flex', justifyContent: 'center' }}>
-            <AdBox />
+        <section className="site-section home-questions" aria-labelledby="home-questions-heading">
+          <div className="container">
+            <h2 id="home-questions-heading">Before you look at the map</h2>
+            <div className="guide-faq">
+              <details><summary>How do I find ice thickness reports near me?</summary><p>Use <Link href="/near-me/">lake search</Link> or the <Link href="/map/">report map</Link>. Search results depend on submitted reports, not a complete list of lakes. No report does not mean safe ice.</p></details>
+              <details><summary>Can I add a lake that is not listed?</summary><p>Yes. If you are already at the lake with a firsthand measurement, enter the lake name in the report form and confirm your GPS location. Never go onto uncertain ice just to contribute.</p></details>
+              <details><summary>Can I report thin ice or other concerns?</summary><p>You can add condition labels and notes to a measured thickness report. The form is not a hazard-only alert or emergency service. Read our <Link href="/report-poor-ice-conditions/">poor ice reporting guide</Link> for its limits.</p></details>
+              <details><summary>Are these official or verified ice reports?</summary><p>No. Ice Relay is an independent community project. Reports are unverified and do not determine whether ice is safe. Consult <Link href="/safety-guide/">current official guidance</Link> and stay off when uncertain.</p></details>
+            </div>
           </div>
         </section>
       </main>
@@ -602,76 +686,17 @@ export default function Home() {
       <Footer />
 
       {/* Lake Confirmation Dialog */}
-      {showLakeConfirmation && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem'
-          }}
-          onClick={() => setShowLakeConfirmation(false)}
-        >
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '100%',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 700,
-                color: 'var(--primary-dark)',
-                marginBottom: '1rem',
-                textAlign: 'center'
-              }}
-            >
-              Are you currently on the lake?
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: 'var(--text-secondary)',
-                marginBottom: '2rem',
-                textAlign: 'center'
-              }}
-            >
-              Please submit only while you are physically at the lake you are measuring. GPS coordinates provide location context, but do not independently verify the report or ice conditions.
-            </Typography>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <Button
-                variant="outlined"
-                size="large"
-                onClick={handleLakeConfirmNo}
-                sx={{ minWidth: '120px' }}
-              >
-                No
-              </Button>
-              <Button
-                variant="contained"
-                size="large"
-                onClick={handleLakeConfirmYes}
-                sx={{ minWidth: '120px' }}
-              >
-                Yes, I&apos;m on the lake
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={showLakeConfirmation} onClose={() => setShowLakeConfirmation(false)} aria-labelledby="lake-confirmation-title" maxWidth="sm" fullWidth>
+        <DialogTitle id="lake-confirmation-title">Are you currently at the lake?</DialogTitle>
+        <DialogContent>
+          <p>Please submit only while physically at the lake you are measuring. GPS coordinates provide location context, but do not independently verify the report or ice conditions.</p>
+          <p style={{ marginTop: '1rem' }}>Never venture onto uncertain ice to collect a report.</p>
+        </DialogContent>
+        <DialogActions sx={{ padding: 3, flexWrap: 'wrap', gap: 1 }}>
+          <Button variant="outlined" onClick={handleLakeConfirmNo}>No</Button>
+          <Button variant="contained" onClick={handleLakeConfirmYes}>Yes, I&apos;m at the lake</Button>
+        </DialogActions>
+      </Dialog>
 
       {(isSubmitFormOpen || newReportRequested) && (
         <SubmitReportForm

@@ -3,7 +3,7 @@
 Ice Relay deploys as two separate services:
 
 - The Next.js static export in `icethick/out/` is published to Azure Static Web Apps.
-- The .NET 10 isolated Functions API in `api/` is published to the `ice-relay-func` Azure Function App.
+- The .NET 10 isolated Functions API in `api/` is published to the `relay-func` Azure Function App by the current workflow.
 
 ## What must be ready
 
@@ -38,7 +38,7 @@ To run the complete local setup:
 3. Start Azurite (for example through its VS Code extension), then run `func start` from `api`.
 4. Set `NEXT_PUBLIC_MAPBOX_TOKEN=pk.<your-public-token>` in ignored `icethick\.env.local`; retain the local site/API URLs. Restrict the token to the development origin and configured production origins.
 5. Run `npm run dev` from `icethick`. Restart it after environment-variable changes. `npm run dev:all` starts the frontend and Functions together, but does not start Azurite or provision SQL.
-6. Verify lake search, map bounds, and a report submission against the development database. A missing token now shows a clear unavailable state with a lake-search link; it does not provide a working substitute map.
+6. Run `api\sql\001-initialize.sql` against the development database, then verify lake search, map bounds, nearby/per-lake queries, and a report submission. A missing token shows a clear unavailable state with a lake-search link; it does not provide a working substitute map.
 
 ### Fixing the Mapbox configuration warning
 
@@ -93,7 +93,7 @@ Use actual values only in ignored local settings or protected backend configurat
 
 SWA **runtime application settings do not configure this exported frontend**, and the separate Function App does not inherit them. The current workflow reads the five public variables from GitHub secrets at build time. Restart local development after changing `.env.local`, and rebuild/redeploy production after changing a frontend secret.
 
-The workflow `.github/workflows/azure-static-web-apps-delightful-river-00df62b10.yml` runs on pushes and pull requests targeting `main`. It installs dependencies, builds the static site with the public environment variables, verifies the exported homepage, 404 page, and SWA configuration, and uploads `icethick/out/` with `skip_app_build: true`. Next.js static export produces `out`, not `build`; `output_location` is empty because `app_location` already points to the export. It does not bundle the separately deployed Functions API.
+The workflow `.github/workflows/azure-static-web-apps-delightful-river-00df62b10.yml` runs on pushes and pull requests targeting `main`. It installs dependencies, builds the static site with public environment variables, runs `verify:export -- --production`, and uploads `icethick/out/` with `skip_app_build: true`. The verifier checks sitemap entries, canonical/share metadata, internal links, 404/noindex, required assets, and security header configuration. Next.js static export produces `out`, not `build`; `output_location` is empty because `app_location` already points to the export. It does not bundle the separately deployed Functions API.
 
 The older calm-pebble workflow has been removed. The remaining workflow uses the delightful-river deployment token. Rerunning an old failed job uses its original workflow revision; push this fix to `main` to trigger a run with the corrected configuration.
 
@@ -124,16 +124,47 @@ The site now declares `https://icerelay.net` as its canonical origin. The sitema
 
 ## API
 
-The workflow at `.github/workflows/main_ice-relay-func.yml` builds the Functions project on pushes to `main`. Deployment is manual: dispatch the workflow and set `deploy_to_azure` only after confirming the Function App hosting plan supports .NET 10. It targets the existing Function App `ice-relay-func`.
+The workflow at `.github/workflows/main_relay-func.yml` explicitly publishes
+`api\IceRelay.Api.csproj` and deploys to `relay-func` on pushes to `main` or manual
+dispatch. Run the SQL setup first and confirm the target hosting plan supports
+.NET 10 before pushing a release. No `deploy_to_azure` switch exists in this workflow.
 
 Configure these Function App settings:
 
 - `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`
 - `FUNCTIONS_EXTENSION_VERSION=~4`
+- `FUNCTIONS_REQUEST_BODY_SIZE_LIMIT=32768` — host-level 32 KiB cap. Application JSON readers enforce 16 KiB. A gateway should reject bodies over 16 KiB with HTTP 413 before Functions binding; oversized host-binding errors may have a host-specific error status.
 - `AzureWebJobsStorage` — Function host storage account connection string or supported identity-based configuration. This is for the Functions host/runtime; the app code does not use Blob Storage or queues.
 - `SQLAZURECONNSTR_DefaultConnection` (preferred) or `SqlConnectionString` — Azure SQL connection string. Keep this secret out of the frontend and source control.
 - `RATE_LIMIT_HASH_SECRET` — a randomly generated secret (at least 32 random bytes, stored as a Function App setting or Key Vault reference) used to HMAC client identifiers before rate-limit/session tracking. Rotating it resets the per-client in-memory rate buckets.
 - Application Insights is not used in the selected setup; `APPLICATIONINSIGHTS_CONNECTION_STRING` is not required.
+
+### Apply the Functions settings
+
+The checked-in `api\azure.settings.example.json` contains the exact setting names
+with **placeholder Key Vault references**, not real credentials. Copy it to the
+ignored `api\azure.settings.local.json` and replace every `YOUR-VAULT` URI with a
+reference to a secret you actually provisioned:
+
+```powershell
+Copy-Item ".\api\azure.settings.example.json" ".\api\azure.settings.local.json"
+# Edit every placeholder in the local file before running:
+az functionapp config appsettings set --subscription "<subscription-id>" --resource-group "<resource-group>" --name "relay-func" --settings "@api\azure.settings.local.json" --output none
+```
+
+Authenticate Azure CLI and confirm the subscription/resource group/app first.
+The command changes the specified app's settings and restarts it. It does not
+create vault secrets or grant permissions. The Function App's managed identity
+must be able to read those secrets, and the app needs network access to the vault.
+The SQL secret contains an encrypted SQL connection string; the storage secret
+contains a supported host storage connection. Generate the HMAC secret from at
+least 32 random bytes and store it as Base64. Do not use the local-development
+example secret in production.
+
+The template configures `SQLAZURECONNSTR_DefaultConnection`, which the API
+prefers over `SqlConnectionString`. Update any older `DefaultConnection` source
+consistently; do not leave competing/stale SQL configurations in the app.
+No live settings are applied by adding this file to source control.
 
 Never put database credentials, storage credentials, or the rate-limit hash secret in frontend environment variables or commit them to the repository. Configure Function App CORS for the exact deployed origin `https://icerelay.net`; configure any alternate host only if it is intentionally served. Configure the public API gateway with the same allowed origin and make the frontend call the gateway endpoint. CORS by itself does not prevent direct calls to the Function App.
 
@@ -145,14 +176,14 @@ For manual deployment, install Azure Functions Core Tools v4, authenticate with 
 
 ```powershell
 cd api
-func azure functionapp publish ice-relay-func
+func azure functionapp publish relay-func
 ```
 
 ## Release checks
 
 ### Search and crawler checks
 
-- The sitemap lists all 11 public page routes at the IceRelay.net canonical origin; it intentionally excludes API routes and the 404 page.
+- `app\sitemap.ts` generates public URLs from `lib\site.ts`, using the same origin as canonical metadata and generated `app\robots.ts`. It excludes API routes, query-string map shortcuts, and 404 pages. The production verifier rejects local/non-HTTPS canonical origins.
 - `robots.txt` allows public pages, disallows `/api/`, and points crawlers to the sitemap. It is not an access-control mechanism.
 - SWA uses `responseOverrides.404` to serve the exported `/404.html` while preserving an HTTP 404. Do not rewrite unknown URLs through `navigationFallback`: that can produce a soft 404 with HTTP 200.
 - Confirm the custom 404 includes `noindex` in the production output (Next.js injects it), and verify a nonexistent URL returns HTTP 404 on the deployed domain.
@@ -160,13 +191,55 @@ func azure functionapp publish ice-relay-func
 - Page titles, descriptions, headings, and official resource links use relevant phrases such as community ice thickness reports, Minnesota lakes, and MN DNR ice safety naturally. Do not add hidden keywords, fabricated lake pages, or claim agency affiliation.
 - Submit the sitemap in Google Search Console after domain/TLS verification; monitor indexing and real search queries. Relevant content and official citations help users, but backlinks to MN DNR do not guarantee ranking or transfer its authority to this site.
 
+### Headers and runtime checks
+
+Static hosting declares HSTS (without subdomain/preload commitments), `nosniff`,
+anti-framing headers, a strict-origin referrer policy, and permissions that retain
+same-origin geolocation while disabling camera/microphone/payment access.
+The CSP restricts resource origins, permits Mapbox blob workers, and removes
+`unsafe-eval`. **Inline scripts/styles remain allowed for static Next.js
+hydration and Emotion styling; this is not a nonce-based strict CSP.**
+
+The build's `scripts\prepare-hosting.mjs` adds only the configured cross-origin API
+origin to the exported CSP. Linked `/api` needs no extra origin. It rejects
+non-HTTPS non-local API URLs and URLs containing credentials. If integrations
+are added, review their exact origins and test the policy rather than restoring
+a blanket `https:` allowlist.
+
+SWA `globalHeaders` apply to static content, not automatically to API responses.
+The Functions middleware adds `nosniff`, `no-store`, and `noindex` to
+application-generated responses. The gateway must cover host-generated errors
+and provide shared throttling, body-size limits, and direct-origin protection.
+In-process limits alone are not a public-launch security boundary.
+
+After deployment, verify **actual HTTP responses**, not just local config:
+
+```powershell
+curl.exe -I "https://icerelay.net/"
+curl.exe -I "https://icerelay.net/resources/"
+curl.exe -I "https://icerelay.net/this-page-does-not-exist/"
+curl.exe -I "https://icerelay.net/robots.txt"
+curl.exe -I "https://icerelay.net/sitemap.xml"
+curl.exe -i "https://icerelay.net/api/reports"
+```
+
+The unknown page must return HTTP 404, not a homepage with HTTP 200. Test maps,
+location permission, reporting, and consent-enabled analytics with the browser
+console open for CSP violations. Keep preview deployments out of search using
+platform preview controls. The PR workflow also sets `ICE_RELAY_PREVIEW=true`,
+which adds `X-Robots-Tag: noindex, nofollow` to preview static responses.
+Production builds must not set this flag. Canonical URLs and noindex are not
+access-control boundaries.
+
 Run the frontend checks before publishing:
 
 ```powershell
 cd icethick
 npm ci
 npm run lint
+npm test
 npm run build
+npm run verify:export
 ```
 
 Build the API from the repository root with:
@@ -175,6 +248,10 @@ Build the API from the repository root with:
 dotnet publish api\IceRelay.Api.csproj --configuration Release --output api\publish
 ```
 
-For local development, copy `api\local.settings.example.json` to `api\local.settings.json` if needed. Set `SqlConnectionString` to a development database and use Azurite for `AzureWebJobsStorage=UseDevelopmentStorage=true`; the local settings file is ignored by Git. The checked-in `DB_Schema.md` is design/reference documentation, not an executable migration. There is currently no checked-in SQL migration or database-schema.sql file. Before rebuilding or migrating the database, take a backup, inspect the deployed schema and indexes, compare them with the API's SQL queries, and write/review a versioned migration that preserves any reports that should remain available.
+For local development, copy `api\local.settings.example.json` to `api\local.settings.json` if needed. Set `SqlConnectionString` to a development database and use Azurite for `AzureWebJobsStorage=UseDevelopmentStorage=true`; the local settings file is ignored by Git. `DB_Schema.md` documents every required column and the command to run `api\sql\001-initialize.sql`. Back up and inspect existing data/schema first; incompatible schemas or invalid rows cause the migration to stop and roll back.
 
-Confirm both deployments are healthy and verify report listing, report submission, lake search, and map-bounds queries. The nearby-report and per-lake routes currently return placeholder data; do not treat them as production-ready. Report storage/query retention is 180 days in the current API and should be aligned with the product's freshness policy before relying on old reports.
+Confirm both deployments are healthy and verify listing, submission, search,
+map bounds, nearby, and per-lake queries. These routes now query real SQL data
+and exclude flagged, expired, and older-than-180-day observations. No automated
+deletion job is implemented; align storage retention and the privacy policy
+before launch. Missing results are not a safety assessment.

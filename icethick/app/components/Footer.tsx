@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 export default function Footer() {
   // Extract to prevent SSR hydration mismatch
   const currentYear = new Date().getFullYear();
@@ -9,7 +11,7 @@ export default function Footer() {
       background: 'var(--primary-dark)',
       color: 'white',
       padding: '2rem 1rem',
-      marginTop: '4rem'
+      marginTop: '0'
     }}>
       <div className="container" style={{
         display: 'flex',
@@ -20,7 +22,6 @@ export default function Footer() {
         <div style={{
           background: 'rgba(255, 255, 255, 0.07)',
           border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderLeft: '4px solid #b5cfe2',
           borderRadius: '0.5rem',
           padding: '1.25rem',
           marginBottom: '1rem'
@@ -69,14 +70,14 @@ export default function Footer() {
                Ice Relay
             </h4>
             <p style={{ fontSize: '0.875rem', opacity: 0.85, lineHeight: '1.6' }}>
-              Unverified community ice thickness reports across the Upper Midwest.
+              An independent community project. Unverified ice thickness observations across the Upper Midwest.
               Minnesota, Wisconsin, Michigan, Iowa, North Dakota, and South Dakota.
             </p>
           </div>
 
           <div>
             <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-              Safety First
+              Explore &amp; contribute
             </h4>
             <ul style={{ 
               fontSize: '0.875rem', 
@@ -85,15 +86,18 @@ export default function Footer() {
               listStyle: 'none',
               padding: 0
             }}>
-              <li>Never treat one report as a safety clearance.</li>
-              <li>Conditions can vary across the same lake.</li>
-              <li>When in doubt, stay off the ice.</li>
+              <li><Link href="/?newReport=true" style={{ color: 'white' }}>Share a report</Link></li>
+              <li><a href="/contribute/" style={{ color: 'white' }}>Community reporting guide</a></li>
+              <li><Link href="/community-ice-reports/" style={{ color: 'white' }}>Self-reported ice conditions</Link></li>
+              <li><Link href="/report-poor-ice-conditions/" style={{ color: 'white' }}>Reporting poor ice conditions</Link></li>
+              <li><a href="/map/" style={{ color: 'white' }}>Lake report map</a></li>
+              <li><a href="/near-me/" style={{ color: 'white' }}>Find your lake</a></li>
             </ul>
           </div>
 
           <div>
             <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-              Quick Links
+              About &amp; resources
             </h4>
             <ul style={{ 
               fontSize: '0.875rem', 
@@ -106,8 +110,7 @@ export default function Footer() {
               <li><a href="/near-me" style={{ color: 'white', textDecoration: 'none' }}>Explore Reports by State</a></li>
               <li><a href="/about" style={{ color: 'white', textDecoration: 'none' }}>About</a></li>
               <li><a href="/contact" style={{ color: 'white', textDecoration: 'none' }}>Contact</a></li>
-              <li><a href="/acceptable-use" style={{ color: 'white', textDecoration: 'none' }}>Acceptable Use</a></li>
-              <li><a href="/disclaimer" style={{ color: 'white', textDecoration: 'none' }}>Full Disclaimer</a></li>
+              <li><Link href="/resources/" style={{ color: 'white' }}>Ice reporting resources</Link></li>
               <li>
                 <a 
                   href="https://github.com/Austtiin/IceRelay/issues" 
@@ -119,6 +122,16 @@ export default function Footer() {
                 </a>
                 <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '1.25rem' }}>(GitHub sign-in required)</span>
               </li>
+            </ul>
+          </div>
+          <div>
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>Policies &amp; transparency</h4>
+            <ul style={{ fontSize: '0.875rem', lineHeight: '1.8', listStyle: 'none', padding: 0 }}>
+              <li><a href="/privacy-policy/" style={{ color: 'white' }}>Privacy policy</a></li>
+              <li><a href="/cookie-policy/" style={{ color: 'white' }}>Cookie policy</a></li>
+              <li><a href="/terms/" style={{ color: 'white' }}>Terms of use</a></li>
+              <li><a href="/acceptable-use/" style={{ color: 'white' }}>Community standards</a></li>
+              <li><a href="/disclaimer/" style={{ color: 'white' }}>Data &amp; safety disclaimer</a></li>
             </ul>
           </div>
         </div>

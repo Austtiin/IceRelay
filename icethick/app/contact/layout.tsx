@@ -1,12 +1,10 @@
-import { Metadata } from 'next';
+import { createPageMetadata } from '../../lib/metadata';
 
-export const metadata: Metadata = {
-  title: 'Contact Us - Ice Relay',
-  description: 'Get in touch with the Ice Relay team. Report bugs, suggest features, or contribute to our open-source ice thickness tracking platform.',
-  alternates: {
-    canonical: '/contact/',
-  },
-};
+export const metadata = createPageMetadata(
+  'Contact Us - Ice Relay',
+  'Get in touch with the Ice Relay team. Report bugs, suggest features, or contribute to our open-source ice thickness tracking platform.',
+  '/contact/',
+);
 
 export default function ContactLayout({
   children,
